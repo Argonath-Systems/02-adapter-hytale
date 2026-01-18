@@ -99,11 +99,10 @@
             </plugin>
 
             <!-- Shade plugin to create uber-jar with all dependencies -->
-            <!-- DISABLED FOR JAVA 25 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.6.0</version>
+                <version>${maven-shade-plugin.version}</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -113,21 +112,24 @@
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <artifactSet>
-                                <excludes>
-                                    <exclude>com.hypixel.hytale:*</exclude>
-                                </excludes>
+                                <includes>
+                                    <include>com.argonathsystems.framework:*</include>
+                                </includes>
                             </artifactSet>
-                            <relocations>
-                                <relocation>
-                                    <pattern>com.argonathsystems.framework</pattern>
-                                    <shadedPattern>com.argonathsystems.adapter.hytaleadapter.shaded.framework</shadedPattern>
-                                </relocation>
-                            </relocations>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
-            -->
 
             <!-- Source JAR -->
             <plugin>
