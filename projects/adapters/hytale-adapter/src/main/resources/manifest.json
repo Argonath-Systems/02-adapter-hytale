@@ -1,0 +1,8 @@
+{
+    "id": "hytale-adapter",
+    "name": "Hytale Adapter",
+    "version": "1.0.0-SNAPSHOT",
+    "description": "A LordOfTheTales adapter",
+    "authors": ["LordOfTheTales Team"],
+    "entrypoint": "com.argonathsystems.adapter.hytaleadapter.HytaleAdapterPlugin"
+}
