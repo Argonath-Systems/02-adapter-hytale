@@ -4,7 +4,7 @@ import com.argonathsystems.adapter.hytaleadapter.converter.LocationConverter;
 import com.argonathsystems.framework.accessorapi.HologramAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 import com.hytale.api.Server;
-import com.hytale.api.World;
+import com.hytale.api.world.World;
 import com.hytale.api.entity.Entity;
 import com.hytale.api.entity.Hologram;
 

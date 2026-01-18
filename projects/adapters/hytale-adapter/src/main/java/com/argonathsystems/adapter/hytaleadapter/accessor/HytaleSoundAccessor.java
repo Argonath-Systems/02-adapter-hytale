@@ -5,7 +5,7 @@ import com.argonathsystems.adapter.hytaleadapter.util.PlayerRefCache;
 import com.argonathsystems.framework.accessorapi.SoundAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 import com.hytale.api.Server;
-import com.hytale.api.World;
+import com.hytale.api.world.World;
 import com.hytale.api.entity.Player;
 
 import java.util.UUID;

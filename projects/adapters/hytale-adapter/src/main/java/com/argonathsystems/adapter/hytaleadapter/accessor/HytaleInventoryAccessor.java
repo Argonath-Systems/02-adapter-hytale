@@ -27,7 +27,7 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
         if (player != null) return player;
         
         // Fallback search
-        for (com.hytale.api.World world : server.getWorlds()) {
+        for (com.hytale.api.world.World world : server.getWorlds()) {
             for (Player p : world.getPlayers()) {
                 if (p.getUniqueId().equals(playerId)) {
                     PlayerRefCache.add(p);
