@@ -9,7 +9,7 @@ public class PlayerRefCache {
     private static final Map<UUID, Player> cache = new ConcurrentHashMap<>();
 
     public static void add(Player player) {
-        // cache.put(player.getUniqueId(), player);
+        cache.put(player.getUniqueId(), player);
     }
 
     public static void remove(UUID uuid) {

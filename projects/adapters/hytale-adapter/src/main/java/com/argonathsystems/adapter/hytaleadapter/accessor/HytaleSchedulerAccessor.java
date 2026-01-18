@@ -2,70 +2,63 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 
 import com.argonathsystems.framework.accessorapi.SchedulerAccessor;
 import com.hytale.api.Server;
+import com.hytale.api.scheduler.Task;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class HytaleSchedulerAccessor implements SchedulerAccessor {
     private final Server server;
-    private final AtomicInteger taskIdCounter = new AtomicInteger(0);
 
     public HytaleSchedulerAccessor(Server server) {
         this.server = server;
     }
 
+    private ScheduledTask wrap(Task task) {
+        return new ScheduledTask() {
+            @Override
+            public int getTaskId() {
+                return task.getTaskId();
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return task.isCancelled();
+            }
+
+            @Override
+            public void cancel() {
+                task.cancel();
+            }
+        };
+    }
+
     @Override
     public ScheduledTask runTask(Runnable task) {
-        task.run(); // TODO: Use real scheduler
-        return new DummyTask(taskIdCounter.incrementAndGet());
+        return wrap(server.getScheduler().runTask(task));
     }
 
     @Override
     public ScheduledTask runTaskLater(Runnable task, long delay, TimeUnit unit) {
-        return new DummyTask(taskIdCounter.incrementAndGet());
+        return wrap(server.getScheduler().runTaskLater(task, delay, unit));
     }
 
     @Override
     public ScheduledTask runTaskTimer(Runnable task, long initialDelay, long period, TimeUnit unit) {
-        return new DummyTask(taskIdCounter.incrementAndGet());
+        return wrap(server.getScheduler().runTaskTimer(task, initialDelay, period, unit));
     }
 
     @Override
     public ScheduledTask runTaskAsync(Runnable task) {
-        new Thread(task).start();
-        return new DummyTask(taskIdCounter.incrementAndGet());
+        return wrap(server.getScheduler().runTaskAsync(task));
     }
 
     @Override
     public ScheduledTask runTaskLaterAsync(Runnable task, long delay, TimeUnit unit) {
-        return new DummyTask(taskIdCounter.incrementAndGet());
+        return wrap(server.getScheduler().runTaskLater(task, delay, unit)); 
     }
 
     @Override
     public void cancelAll() {
-    }
-
-    private static class DummyTask implements ScheduledTask {
-        private final int id;
-        private volatile boolean cancelled = false;
-
-        public DummyTask(int id) {
-            this.id = id;
-        }
-
-        @Override
-        public int getTaskId() {
-            return id;
-        }
-
-        @Override
-        public boolean isCancelled() {
-            return cancelled;
-        }
-
-        @Override
-        public void cancel() {
-            cancelled = true;
-        }
+        // Not supported by simple API yet
     }
 }

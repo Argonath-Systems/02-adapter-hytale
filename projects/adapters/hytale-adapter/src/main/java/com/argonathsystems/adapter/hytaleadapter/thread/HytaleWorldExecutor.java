@@ -15,26 +15,20 @@ public class HytaleWorldExecutor implements WorldExecutor {
 
     @Override
     public <T> CompletableFuture<T> execute(Callable<T> task) {
-        // TODO: Implement actual Hytale scheduler execution
-        CompletableFuture<T> future = new CompletableFuture<>();
-        try {
-            future.complete(task.call());
-        } catch (Exception e) {
-            future.completeExceptionally(e);
-        }
-        return future;
+        return server.getScheduler().callSync(task);
     }
 
     @Override
     public CompletableFuture<Void> execute(Runnable task) {
-        // TODO: Implement actual Hytale scheduler execution
         CompletableFuture<Void> future = new CompletableFuture<>();
-        try {
-            task.run();
-            future.complete(null);
-        } catch (Exception e) {
-            future.completeExceptionally(e);
-        }
+        server.getScheduler().runTask(() -> {
+            try {
+                task.run();
+                future.complete(null);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
         return future;
     }
 

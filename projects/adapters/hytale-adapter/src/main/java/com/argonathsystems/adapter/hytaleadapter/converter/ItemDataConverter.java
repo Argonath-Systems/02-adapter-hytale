@@ -1,18 +1,25 @@
 package com.argonathsystems.adapter.hytaleadapter.converter;
 
 import com.argonathsystems.framework.accessorapi.dto.ItemData;
-// import com.hytale.api.inventory.ItemStack;
+import com.hytale.api.inventory.ItemStack;
+import java.util.Collections;
+import java.util.UUID;
 
 public class ItemDataConverter {
-    public static ItemData toDTO(Object hytaleItemStack) {
+    public static ItemData toDTO(ItemStack hytaleItemStack) {
         if (hytaleItemStack == null) return null;
-        // Conversion logic here
-        return new ItemData(java.util.UUID.randomUUID(), "item_id", 1, -1, -1, null);
+        return new ItemData(
+            UUID.randomUUID(), // Hytale items might not have UUIDs, generate one
+            hytaleItemStack.getType(),
+            hytaleItemStack.getAmount(),
+            0, // modelData
+            64, // maxStackSize
+            Collections.emptyMap() // meta
+        );
     }
 
-    public static Object fromDTO(ItemData dto) {
+    public static ItemStack fromDTO(ItemData dto, com.hytale.api.Server server) {
         if (dto == null) return null;
-        // Conversion logic here
-        return null;
+        return server.createItemStack(dto.itemId(), dto.amount());
     }
 }

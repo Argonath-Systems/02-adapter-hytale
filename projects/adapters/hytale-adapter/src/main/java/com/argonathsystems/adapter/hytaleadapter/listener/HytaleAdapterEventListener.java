@@ -8,6 +8,8 @@ import com.hytale.api.event.Handler;
 import com.hytale.api.entity.Player;
 import java.util.UUID;
 
+import com.argonathsystems.adapter.hytaleadapter.util.PlayerRefCache;
+
 public class HytaleAdapterEventListener implements EventListener {
 
     private final HytaleEventAccessor eventAccessor;
@@ -21,8 +23,9 @@ public class HytaleAdapterEventListener implements EventListener {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
         
+        PlayerRefCache.add(player);
+
         // Create framework event
-        // Note: Join message handling might vary, passing null or default for now
         PlayerJoinEvent frameworkEvent = new PlayerJoinEvent(playerId, player.getName() + " joined the game");
         
         // Publish to framework
@@ -31,11 +34,15 @@ public class HytaleAdapterEventListener implements EventListener {
 
     @Handler
     public void onPlayerQuit(com.hytale.api.event.PlayerQuitEvent event) {
-        Player player = event.getPlayer();
-        UUID playerId = player.getUniqueId();
-        
-        PlayerQuitEvent frameworkEvent = new PlayerQuitEvent(playerId, player.getName() + " left the game");
-        
-        eventAccessor.emit(frameworkEvent);
+         Player player = event.getPlayer();
+         UUID playerId = player.getUniqueId();
+         
+         PlayerRefCache.remove(playerId);
+
+         // Create framework event
+         PlayerQuitEvent frameworkEvent = new PlayerQuitEvent(playerId, player.getName() + " left the game");
+         
+         // Publish to framework
+         eventAccessor.emit(frameworkEvent);
     }
 }

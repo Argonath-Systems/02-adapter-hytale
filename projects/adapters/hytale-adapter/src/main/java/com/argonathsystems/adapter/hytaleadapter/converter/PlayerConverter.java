@@ -11,8 +11,8 @@ public class PlayerConverter {
         return new PlayerData(
             player.getUniqueId(),
             player.getName(),
-            player.getHealth(),
-            player.getMaxHealth()
+            (int) player.getHealth(),
+            (int) player.getMaxHealth()
         );
     }
 }
