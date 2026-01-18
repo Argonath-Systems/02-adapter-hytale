@@ -84,4 +84,12 @@ public class HytalePlayerAccessor implements PlayerAccessor {
             player.setHealth(health);
         }
     }
+    
+    @Override
+    public UUID getPlayerId(Object platformObject) {
+         if (platformObject instanceof Player) {
+             return ((Player) platformObject).getUniqueId();
+         }
+         return null;
+    }
 }

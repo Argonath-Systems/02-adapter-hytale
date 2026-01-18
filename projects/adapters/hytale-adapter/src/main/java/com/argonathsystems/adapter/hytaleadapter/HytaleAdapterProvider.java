@@ -20,6 +20,8 @@ public class HytaleAdapterProvider implements AccessorProvider {
     private final HytaleSoundAccessor soundAccessor;
     private final HytaleNotificationAccessor notificationAccessor;
     private final HytaleHologramAccessor hologramAccessor;
+    private final HytaleCommandAccessor commandAccessor;
+    private final HytaleConfigAccessor configAccessor;
     
     // Internal
     private final HytaleWorldExecutor worldExecutor;
@@ -42,6 +44,8 @@ public class HytaleAdapterProvider implements AccessorProvider {
         this.soundAccessor = new HytaleSoundAccessor(server);
         this.notificationAccessor = new HytaleNotificationAccessor(server);
         this.hologramAccessor = new HytaleHologramAccessor(server);
+        this.commandAccessor = new HytaleCommandAccessor(server);
+        this.configAccessor = new HytaleConfigAccessor(server);
     }
     
     @Override public PlayerAccessor getPlayerAccessor() { return playerAccessor; }
@@ -56,6 +60,8 @@ public class HytaleAdapterProvider implements AccessorProvider {
     @Override public SoundAccessor getSoundAccessor() { return soundAccessor; }
     @Override public NotificationAccessor getNotificationAccessor() { return notificationAccessor; }
     @Override public HologramAccessor getHologramAccessor() { return hologramAccessor; }
+    @Override public CommandAccessor getCommandAccessor() { return commandAccessor; }
+    @Override public ConfigAccessor getConfigAccessor() { return configAccessor; }
     
     @Override 
     public com.argonathsystems.framework.accessorapi.thread.WorldExecutor getWorldExecutor() { 
