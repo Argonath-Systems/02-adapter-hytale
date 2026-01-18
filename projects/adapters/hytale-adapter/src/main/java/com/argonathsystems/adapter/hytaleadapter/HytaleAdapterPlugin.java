@@ -1,9 +1,14 @@
 package com.argonathsystems.adapter.hytaleadapter;
 
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 
 public class HytaleAdapterPlugin extends JavaPlugin {
     
+    public HytaleAdapterPlugin(JavaPluginInit init) {
+        super(init);
+    }
+
     @Override
     public void onEnable() {
         getLogger().info("Initializing HytaleAdapterPlugin...");
