@@ -45,4 +45,22 @@ public class HytaleAdapterEventListener implements EventListener {
          // Publish to framework
          eventAccessor.emit(frameworkEvent);
     }
+    
+    @Handler
+    public void onEntityDeath(com.hytale.api.event.EntityDeathEvent event) {
+        com.hytale.api.entity.Entity victim = event.getEntity();
+        com.hytale.api.entity.Entity killer = event.getKiller();
+        
+        UUID killerId = killer != null ? killer.getUniqueId() : null;
+        
+        // Create framework event
+        com.argonathsystems.framework.accessorapi.event.EntityKillEvent frameworkEvent = 
+            new com.argonathsystems.framework.accessorapi.event.EntityKillEvent(
+                com.argonathsystems.adapter.hytaleadapter.converter.EntityDataConverter.toDTO(victim),
+                killerId
+            );
+            
+        // Publish to framework
+        eventAccessor.emit(frameworkEvent);
+    }
 }
