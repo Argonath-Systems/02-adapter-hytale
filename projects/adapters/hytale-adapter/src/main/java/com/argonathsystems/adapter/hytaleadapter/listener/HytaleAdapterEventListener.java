@@ -26,7 +26,7 @@ public class HytaleAdapterEventListener implements EventListener {
         PlayerJoinEvent frameworkEvent = new PlayerJoinEvent(playerId, player.getName() + " joined the game");
         
         // Publish to framework
-        eventAccessor.publish(frameworkEvent);
+        eventAccessor.emit(frameworkEvent);
     }
 
     @Handler
@@ -34,8 +34,8 @@ public class HytaleAdapterEventListener implements EventListener {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
         
-        PlayerQuitEvent frameworkEvent = new PlayerQuitEvent(playerId);
+        PlayerQuitEvent frameworkEvent = new PlayerQuitEvent(playerId, player.getName() + " left the game");
         
-        eventAccessor.publish(frameworkEvent);
+        eventAccessor.emit(frameworkEvent);
     }
 }

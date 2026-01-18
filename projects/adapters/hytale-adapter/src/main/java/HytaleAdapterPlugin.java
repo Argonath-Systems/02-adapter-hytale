@@ -31,6 +31,13 @@ public class HytaleAdapterPlugin implements Plugin {
         // Create the adapter provider with all accessors
         this.adapterProvider = new HytaleAdapterAdapterProvider(server);
         
+        // Register Event Listener Bridge
+        com.argonathsystems.adapter.hytaleadapter.accessor.HytaleEventAccessor eventAccessor = 
+            (com.argonathsystems.adapter.hytaleadapter.accessor.HytaleEventAccessor) adapterProvider.getEventAccessor();
+        com.argonathsystems.adapter.hytaleadapter.listener.HytaleAdapterEventListener eventListener = 
+            new com.argonathsystems.adapter.hytaleadapter.listener.HytaleAdapterEventListener(eventAccessor);
+        server.getEventBus().register(eventListener);
+        
         // Register the provider so other mods can access it
         // AdapterRegistry.register(adapterProvider);
         
