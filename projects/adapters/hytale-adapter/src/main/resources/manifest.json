@@ -13,6 +13,6 @@
   "Dependencies": {},
   "OptionalDependencies": {},
   "DisabledByDefault": false,
-  "IncludesAssetPack": false,
+  "IncludesAssetPack": true,
   "Main": "com.argonathsystems.adapter.hytaleadapter.HytaleAdapterPlugin"
 }
