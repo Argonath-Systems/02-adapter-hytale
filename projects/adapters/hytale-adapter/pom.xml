@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.lordofthetales</groupId>
-        <artifactId>lordofthetales-parent</artifactId>
+        <groupId>com.argonathsystems</groupId>
+        <artifactId>argonathsystems-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
         <relativePath>../../parent-pom/pom.xml</relativePath>
     </parent>
@@ -44,14 +44,14 @@
         
         <!-- Accessor API - Interfaces to implement -->
         <dependency>
-            <groupId>com.lordofthetales.framework</groupId>
+            <groupId>com.argonathsystems.framework</groupId>
             <artifactId>accessor-api</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <!-- Core Library - Shared utilities -->
         <dependency>
-            <groupId>com.lordofthetales.framework</groupId>
+            <groupId>com.argonathsystems.framework</groupId>
             <artifactId>core-lib</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -119,7 +119,7 @@
                             <relocations>
                                 <!-- Relocate framework packages to avoid conflicts -->
                                 <relocation>
-                                    <pattern>com.lordofthetales.framework</pattern>
+                                    <pattern>com.argonathsystems.framework</pattern>
                                     <shadedPattern>com.argonathsystems.adapter.hytaleadapter.shaded.framework</shadedPattern>
                                 </relocation>
                             </relocations>

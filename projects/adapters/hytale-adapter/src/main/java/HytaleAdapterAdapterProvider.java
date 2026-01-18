@@ -4,11 +4,11 @@ package com.argonathsystems.adapter.hytaleadapter;
 import com.hytale.api.Server;
 
 // Accessor API interfaces
-import com.lordofthetales.framework.accessorapi.AccessorProvider;
-import com.lordofthetales.framework.accessorapi.PlayerAccessor;
-import com.lordofthetales.framework.accessorapi.ItemAccessor;
-import com.lordofthetales.framework.accessorapi.WorldAccessor;
-import com.lordofthetales.framework.accessorapi.EventAccessor;
+import com.argonathsystems.framework.accessorapi.AccessorProvider;
+import com.argonathsystems.framework.accessorapi.PlayerAccessor;
+import com.argonathsystems.framework.accessorapi.ItemAccessor;
+import com.argonathsystems.framework.accessorapi.WorldAccessor;
+import com.argonathsystems.framework.accessorapi.EventAccessor;
 
 // Accessor implementations
 import com.argonathsystems.adapter.hytaleadapter.accessor.*;
@@ -62,6 +62,39 @@ public class HytaleAdapterAdapterProvider implements AccessorProvider {
     public EventAccessor getEventAccessor() {
         return eventAccessor;
     }
+
+    @Override
+    public com.argonathsystems.framework.accessorapi.EntityAccessor getEntityAccessor() { return null; }
+
+    @Override
+    public com.argonathsystems.framework.accessorapi.InventoryAccessor getInventoryAccessor() { return null; }
+
+    @Override
+    public com.argonathsystems.framework.accessorapi.SchedulerAccessor getSchedulerAccessor() { return null; }
+
+    @Override
+    public com.argonathsystems.framework.accessorapi.StorageAccessor getStorageAccessor() { return null; }
+
+    @Override
+    public com.argonathsystems.framework.accessorapi.UIAccessor getUIAccessor() { return null; }
+
+    @Override
+    public com.argonathsystems.framework.accessorapi.SoundAccessor getSoundAccessor() { return null; }
+
+    @Override
+    public com.argonathsystems.framework.accessorapi.NotificationAccessor getNotificationAccessor() { return null; }
+
+    @Override
+    public com.argonathsystems.framework.accessorapi.HologramAccessor getHologramAccessor() { return null; }
+
+    @Override
+    public com.argonathsystems.framework.accessorapi.thread.WorldExecutor getWorldExecutor() { return null; }
+
+    @Override
+    public String getPlatformId() { return "hytale"; }
+
+    @Override
+    public boolean supports(Capability capability) { return true; }
     
     /**
      * Shutdown all accessors and release resources.

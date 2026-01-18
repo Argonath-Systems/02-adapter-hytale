@@ -5,9 +5,9 @@ import com.hytale.api.Server;
 import com.hytale.api.entity.Player;
 
 // Accessor API interfaces
-import com.lordofthetales.framework.accessorapi.PlayerAccessor;
-import com.lordofthetales.framework.accessorapi.dto.PlayerData;
-import com.lordofthetales.framework.accessorapi.dto.LocationData;
+import com.argonathsystems.framework.accessorapi.PlayerAccessor;
+import com.argonathsystems.framework.accessorapi.dto.PlayerData;
+import com.argonathsystems.framework.accessorapi.dto.LocationData;
 
 // Converters
 import com.argonathsystems.adapter.hytaleadapter.converter.PlayerConverter;
@@ -67,5 +67,16 @@ public class HytalePlayerAccessor implements PlayerAccessor {
         // if (player != null) {
         //     player.sendMessage(message);
         // }
+    }
+
+    @Override
+    public Optional<LocationData> getLocation(UUID playerId) {
+        // TODO: Get location from Hytale
+        return Optional.empty();
+    }
+
+    @Override
+    public void setHealth(UUID playerId, int health) {
+        // TODO: Set health
     }
 }
