@@ -32,6 +32,15 @@ public class HytaleAdapterAdapterProvider implements AccessorProvider {
     private final HytaleItemAccessor itemAccessor;
     private final HytaleWorldAccessor worldAccessor;
     private final HytaleEventAccessor eventAccessor;
+    private final HytaleEntityAccessor entityAccessor;
+    private final HytaleInventoryAccessor inventoryAccessor;
+    private final HytaleSchedulerAccessor schedulerAccessor;
+    private final HytaleStorageAccessor storageAccessor;
+    private final HytaleUIAccessor uiAccessor;
+    private final HytaleSoundAccessor soundAccessor;
+    private final HytaleNotificationAccessor notificationAccessor;
+    private final HytaleHologramAccessor hologramAccessor;
+    private final com.argonathsystems.adapter.hytaleadapter.thread.HytaleWorldExecutor worldExecutor;
 
     public HytaleAdapterAdapterProvider(Server server) {
         this.server = server;
@@ -41,54 +50,55 @@ public class HytaleAdapterAdapterProvider implements AccessorProvider {
         this.itemAccessor = new HytaleItemAccessor(server);
         this.worldAccessor = new HytaleWorldAccessor(server);
         this.eventAccessor = new HytaleEventAccessor(server);
+        this.entityAccessor = new HytaleEntityAccessor(server);
+        this.inventoryAccessor = new HytaleInventoryAccessor(server);
+        this.schedulerAccessor = new HytaleSchedulerAccessor(server);
+        this.storageAccessor = new HytaleStorageAccessor(server);
+        this.uiAccessor = new HytaleUIAccessor(server);
+        this.soundAccessor = new HytaleSoundAccessor(server);
+        this.notificationAccessor = new HytaleNotificationAccessor(server);
+        this.hologramAccessor = new HytaleHologramAccessor(server);
+        this.worldExecutor = new com.argonathsystems.adapter.hytaleadapter.thread.HytaleWorldExecutor(server);
     }
 
     @Override
-    public PlayerAccessor getPlayerAccessor() {
-        return playerAccessor;
-    }
+    public PlayerAccessor getPlayerAccessor() { return playerAccessor; }
 
     @Override
-    public ItemAccessor getItemAccessor() {
-        return itemAccessor;
-    }
+    public ItemAccessor getItemAccessor() { return itemAccessor; }
 
     @Override
-    public WorldAccessor getWorldAccessor() {
-        return worldAccessor;
-    }
+    public WorldAccessor getWorldAccessor() { return worldAccessor; }
 
     @Override
-    public EventAccessor getEventAccessor() {
-        return eventAccessor;
-    }
+    public EventAccessor getEventAccessor() { return eventAccessor; }
 
     @Override
-    public com.argonathsystems.framework.accessorapi.EntityAccessor getEntityAccessor() { return null; }
+    public com.argonathsystems.framework.accessorapi.EntityAccessor getEntityAccessor() { return entityAccessor; }
 
     @Override
-    public com.argonathsystems.framework.accessorapi.InventoryAccessor getInventoryAccessor() { return null; }
+    public com.argonathsystems.framework.accessorapi.InventoryAccessor getInventoryAccessor() { return inventoryAccessor; }
 
     @Override
-    public com.argonathsystems.framework.accessorapi.SchedulerAccessor getSchedulerAccessor() { return null; }
+    public com.argonathsystems.framework.accessorapi.SchedulerAccessor getSchedulerAccessor() { return schedulerAccessor; }
 
     @Override
-    public com.argonathsystems.framework.accessorapi.StorageAccessor getStorageAccessor() { return null; }
+    public com.argonathsystems.framework.accessorapi.StorageAccessor getStorageAccessor() { return storageAccessor; }
 
     @Override
-    public com.argonathsystems.framework.accessorapi.UIAccessor getUIAccessor() { return null; }
+    public com.argonathsystems.framework.accessorapi.UIAccessor getUIAccessor() { return uiAccessor; }
 
     @Override
-    public com.argonathsystems.framework.accessorapi.SoundAccessor getSoundAccessor() { return null; }
+    public com.argonathsystems.framework.accessorapi.SoundAccessor getSoundAccessor() { return soundAccessor; }
 
     @Override
-    public com.argonathsystems.framework.accessorapi.NotificationAccessor getNotificationAccessor() { return null; }
+    public com.argonathsystems.framework.accessorapi.NotificationAccessor getNotificationAccessor() { return notificationAccessor; }
 
     @Override
-    public com.argonathsystems.framework.accessorapi.HologramAccessor getHologramAccessor() { return null; }
+    public com.argonathsystems.framework.accessorapi.HologramAccessor getHologramAccessor() { return hologramAccessor; }
 
     @Override
-    public com.argonathsystems.framework.accessorapi.thread.WorldExecutor getWorldExecutor() { return null; }
+    public com.argonathsystems.framework.accessorapi.thread.WorldExecutor getWorldExecutor() { return worldExecutor; }
 
     @Override
     public String getPlatformId() { return "hytale"; }

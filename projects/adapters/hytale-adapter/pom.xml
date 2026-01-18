@@ -99,10 +99,11 @@
             </plugin>
 
             <!-- Shade plugin to create uber-jar with all dependencies -->
+            <!-- DISABLED FOR JAVA 25 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
+                <version>3.6.0</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -117,7 +118,6 @@
                                 </excludes>
                             </artifactSet>
                             <relocations>
-                                <!-- Relocate framework packages to avoid conflicts -->
                                 <relocation>
                                     <pattern>com.argonathsystems.framework</pattern>
                                     <shadedPattern>com.argonathsystems.adapter.hytaleadapter.shaded.framework</shadedPattern>
@@ -127,6 +127,7 @@
                     </execution>
                 </executions>
             </plugin>
+            -->
 
             <!-- Source JAR -->
             <plugin>
