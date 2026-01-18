@@ -286,4 +286,14 @@ public class HytaleWorldAccessor implements WorldAccessor {
         
         return world.getDifficulty().name().toLowerCase();
     }
+
+    @Override
+    public boolean unloadChunk(int x, int z) {
+        return false;
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> generateChunk(int x, int z) {
+        return java.util.concurrent.CompletableFuture.completedFuture(false);
+    }
 }

@@ -69,6 +69,25 @@ public class HytaleAdapterProvider implements AccessorProvider {
     }
 
     @Override
+    public WorldManagementAccessor getWorldManagementAccessor() {
+        return new WorldManagementAccessor() {
+            @Override
+            public java.util.Optional<WorldAccessor> createDynamicWorld(String newWorldName, String templateName) {
+                return java.util.Optional.empty();
+            }
+            @Override
+            public boolean unloadDynamicWorld(String worldName) {
+                return false;
+            }
+
+            @Override
+            public boolean isWorldLoaded(String worldName) {
+                return false;
+            }
+        };
+    }
+
+    @Override
     public String getPlatformId() {
         return "hytale";
     }
