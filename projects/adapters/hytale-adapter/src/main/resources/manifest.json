@@ -10,7 +10,9 @@
   ],
   "Website": "",
   "ServerVersion": "*",
-  "Dependencies": {},
+  "Dependencies": {
+    "com.argonathsystems.mods:AccessorApi": "1.0.0-SNAPSHOT"
+  },
   "OptionalDependencies": {},
   "DisabledByDefault": false,
   "IncludesAssetPack": true,
