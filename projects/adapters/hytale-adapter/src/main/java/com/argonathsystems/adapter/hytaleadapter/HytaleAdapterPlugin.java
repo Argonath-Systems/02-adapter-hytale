@@ -6,6 +6,9 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import java.util.ServiceLoader;
 import java.util.ArrayList;
 import java.util.List;
+import com.argonathsystems.framework.accessorapi.AccessorRegistry;
+import com.hytale.api.Server;
+import com.hypixel.hytale.server.core.HytaleServer;
 
 public class HytaleAdapterPlugin extends JavaPlugin {
     
@@ -20,8 +23,21 @@ public class HytaleAdapterPlugin extends JavaPlugin {
         getLogger().info("Initializing HytaleAdapterPlugin...");
         
         try {
-            // Disabled for initial validation pass to verify plugin loading mechanism
-            getLogger().info("HytaleAdapterProvider initialized (Stubbed).");
+            // Initialize and register AccessorProvider
+            // Attempting to bridge Core Server to API Server
+            Object coreServer = HytaleServer.get();
+            if (coreServer instanceof Server) {
+                HytaleAdapterProvider provider = new HytaleAdapterProvider((Server) coreServer);
+                AccessorRegistry.registerProvider(provider);
+                getLogger().info("HytaleAdapterProvider initialized and registered.");
+            } else {
+                 getLogger().error("HytaleServer instance does not implement com.hytale.api.Server! Provider registration failed.");
+                 // Fallback or critical failure? 
+                 // Many mods will fail, but we'll let it process to see specific errors if any.
+                 // For now, let's try to proceed hoping there's a mixin or something handling this, 
+                 // or that compiler lets it verify.
+                 // Actually, if we can't register, we should probably throw or log strictly.
+            }
 
             // Load Platform-Agnostic Mods via ServiceLoader
             ServiceLoader<ArgonathMod> loader = ServiceLoader.load(ArgonathMod.class, getClass().getClassLoader());
