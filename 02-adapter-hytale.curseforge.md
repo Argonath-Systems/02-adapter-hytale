@@ -67,7 +67,7 @@ dependencies {
 
 ## 🏷️ Tags
 
-`hytale adapter platform implementation ecs` `library` `framework` `hytale` `lord-of-the-tales` `argonath-systems`
+`hytale adapter platform implementation ecs` `library` `framework` `hytale` `argonath` `argonath-systems`
 
 ## 🔗 Dependencies
 
