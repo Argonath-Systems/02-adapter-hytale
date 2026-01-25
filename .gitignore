@@ -1,0 +1,44 @@
+# Compiled class files
+*.class
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+# IDE
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# Logs
+*.log
+
+# Test output
+test-output/
+surefire-reports/
+
+# Checkstyle
+.checkstyle
+
+# JaCoCo
+jacoco.exec
+
+# Local config
+*.local.yml
+*.local.yaml
+
+# OS
+.DS_Store
+Thumbs.db
