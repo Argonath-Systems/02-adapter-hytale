@@ -6,13 +6,13 @@
 
     <parent>
         <groupId>com.argonathsystems</groupId>
-        <artifactId>argonathsystems-parent</artifactId>
+        <artifactId>argonath-mithril-forge-core</artifactId>
         <version>1.0.0-SNAPSHOT</version>
-        <relativePath>../../parent-pom/pom.xml</relativePath>
+        <relativePath>../01-platform-core/pom.xml</relativePath>
     </parent>
 
     <groupId>com.argonathsystems.adapter</groupId>
-    <artifactId>hytale-adapter</artifactId>
+    <artifactId>argonath-gandalfs-bridge-adapter</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
@@ -45,14 +45,14 @@
         <!-- Accessor API - Interfaces to implement -->
         <dependency>
             <groupId>com.argonathsystems.framework</groupId>
-            <artifactId>accessor-api</artifactId>
+            <artifactId>argonath-grey-havens-accessor</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <!-- Core Library - Shared utilities -->
         <dependency>
             <groupId>com.argonathsystems.framework</groupId>
-            <artifactId>core-lib</artifactId>
+            <artifactId>argonath-bag-end-core</artifactId>
             <version>${project.version}</version>
         </dependency>
 
