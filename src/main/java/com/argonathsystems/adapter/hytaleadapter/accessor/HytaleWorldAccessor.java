@@ -296,4 +296,23 @@ public class HytaleWorldAccessor implements WorldAccessor {
     public java.util.concurrent.CompletableFuture<Boolean> generateChunk(int x, int z) {
         return java.util.concurrent.CompletableFuture.completedFuture(false);
     }
+
+    @Override
+    public void setBlock(Object worldObj, int x, int y, int z, String blockId) {
+        World world;
+        if (worldObj instanceof World) {
+            world = (World) worldObj;
+        } else if (worldObj instanceof String) {
+            world = getWorld((String) worldObj);
+        } else {
+            world = server.getDefaultWorld();
+        }
+
+        if (world != null) {
+            com.hytale.api.block.BlockType type = com.hytale.api.block.BlockType.get(blockId);
+            if (type != null) {
+                world.setBlock(x, y, z, type);
+            }
+        }
+    }
 }
