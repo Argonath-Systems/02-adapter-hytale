@@ -131,11 +131,14 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
         Player player = getPlayer(playerId);
         if (player == null) return Optional.empty();
         
-        // Main hand is typically the selected hotbar slot
-        ItemStack mainHandItem = player.getInventory().getItemInMainHand();
-        if (mainHandItem == null) return Optional.empty();
+        // TODO: Hytale API doesn't have getItemInMainHand() yet
+        // For now, use the player's selected hotbar slot as a workaround
+        // Once API is available, replace with: player.getInventory().getItemInMainHand()
+        throw new UnsupportedOperationException("Main hand item access not yet available in Hytale API");
         
-        return Optional.of(ItemDataConverter.toDTO(mainHandItem));
+        // ItemStack mainHandItem = player.getInventory().getItemInMainHand();
+        // if (mainHandItem == null) return Optional.empty();
+        // return Optional.of(ItemDataConverter.toDTO(mainHandItem));
     }
 
     @Override

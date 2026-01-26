@@ -16,4 +16,9 @@ public class HytaleCommandAccessor implements CommandAccessor {
         // server.getCommandManager().register(command, ...);
         server.getLogger().info("Registered command: " + command);
     }
+
+    @Override
+    public void register(Object command) {
+        throw new UnsupportedOperationException("Platform-specific command registration not yet implemented");
+    }
 }

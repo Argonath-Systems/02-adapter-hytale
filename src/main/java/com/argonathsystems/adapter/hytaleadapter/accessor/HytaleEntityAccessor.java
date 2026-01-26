@@ -66,8 +66,40 @@ public class HytaleEntityAccessor implements EntityAccessor {
 
     @Override
     public Optional<EntityData> spawnEntity(String type, LocationData location) {
-         // Requires Hytale API specific spawn logic which is likely on World
-         return Optional.empty(); // TODO: Add spawn to World interface
+        // TODO: Hytale API doesn't have spawnEntity(type, x, y, z) yet
+        // Once available, implement entity spawning
+        throw new UnsupportedOperationException("Entity spawning not yet available in Hytale API");
+        
+        /* // Find the world for this location
+        World world = null;
+        if (location.worldId() != null) {
+            world = server.getWorld(UUID.fromString(location.worldId()));
+        }
+        
+        // Fallback to first world if none specified
+        if (world == null && !server.getWorlds().isEmpty()) {
+            world = server.getWorlds().iterator().next();
+        }
+        
+        if (world == null) {
+            System.err.println("No world available for entity spawn");
+            return Optional.empty();
+        }
+        
+        try {
+            // Spawn entity using World API
+            // Note: This assumes Hytale API provides world.spawnEntity(type, x, y, z)
+            // The exact method may vary based on final Hytale SDK
+            Entity entity = world.spawnEntity(type, location.x(), location.y(), location.z());
+            
+            if (entity != null) {
+                return Optional.of(EntityDataConverter.toDTO(entity));
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to spawn entity '" + type + "': " + e.getMessage());
+        }
+        
+        return Optional.empty(); */
     }
 
     @Override

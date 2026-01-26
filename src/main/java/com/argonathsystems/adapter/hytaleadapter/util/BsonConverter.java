@@ -1,7 +1,7 @@
 package com.argonathsystems.adapter.hytaleadapter.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.bson.Document;
+// import com.fasterxml.jackson.databind.ObjectMapper;
+// import org.bson.Document;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -10,9 +10,11 @@ import java.util.Map;
 /**
  * Utility for converting between BSON Documents and Java Maps.
  * Uses MongoDB's BSON library for proper type handling.
+ * 
+ * TODO: Add org.bson dependency to enable this utility
  */
 public class BsonConverter {
-    private static final ObjectMapper mapper = new ObjectMapper();
+    // private static final ObjectMapper mapper = new ObjectMapper();
     
     /**
      * Converts a BSON Document to a Java Map.
@@ -21,7 +23,8 @@ public class BsonConverter {
      * @return Map representation of the document
      */
     public static Map<String, Object> bsonToMap(Object bsonDocument) {
-        if (bsonDocument == null) {
+        throw new UnsupportedOperationException("BSON support not yet enabled - add org.bson dependency");
+        /* if (bsonDocument == null) {
             return Collections.emptyMap();
         }
         
@@ -45,7 +48,7 @@ public class BsonConverter {
             }
         }
         
-        return map;
+        return map; */
     }
 
     /**
@@ -55,11 +58,12 @@ public class BsonConverter {
      * @return BSON Document
      */
     public static Object mapToBson(Map<String, Object> map) {
-        if (map == null || map.isEmpty()) {
+        throw new UnsupportedOperationException("BSON support not yet enabled - add org.bson dependency");
+        /* if (map == null || map.isEmpty()) {
             return new Document();
         }
         
-        Document doc = new Document();
+        /* Document doc = new Document();
         
         for (Map.Entry<String, Object> entry : map.entrySet()) {
             Object value = entry.getValue();
@@ -74,6 +78,6 @@ public class BsonConverter {
             }
         }
         
-        return doc;
+        return doc; */
     }
 }
