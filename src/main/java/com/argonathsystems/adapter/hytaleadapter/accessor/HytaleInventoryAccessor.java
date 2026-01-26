@@ -112,16 +112,44 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
     
     @Override
     public int countItem(UUID playerId, String itemId) {
-        return 0; // TODO impl
+        Player player = getPlayer(playerId);
+        if (player == null) return 0;
+        
+        int count = 0;
+        Inventory inv = player.getInventory();
+        for (int i = 0; i < inv.getSize(); i++) {
+            ItemStack is = inv.getItem(i);
+            if (is != null && is.getType().equals(itemId)) {
+                count += is.getAmount();
+            }
+        }
+        return count;
     }
 
     @Override
     public Optional<ItemData> getMainHandItem(UUID playerId) {
-        return Optional.empty(); // TODO impl
+        Player player = getPlayer(playerId);
+        if (player == null) return Optional.empty();
+        
+        // Main hand is typically the selected hotbar slot
+        ItemStack mainHandItem = player.getInventory().getItemInMainHand();
+        if (mainHandItem == null) return Optional.empty();
+        
+        return Optional.of(ItemDataConverter.toDTO(mainHandItem));
     }
 
     @Override
     public int getEmptySlots(UUID playerId) {
-        return 0; // TODO impl
+        Player player = getPlayer(playerId);
+        if (player == null) return 0;
+        
+        int emptyCount = 0;
+        Inventory inv = player.getInventory();
+        for (int i = 0; i < inv.getSize(); i++) {
+            if (inv.getItem(i) == null) {
+                emptyCount++;
+            }
+        }
+        return emptyCount;
     }
 }
