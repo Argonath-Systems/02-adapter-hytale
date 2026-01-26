@@ -10,16 +10,31 @@ import java.util.UUID;
 
 public class HytaleUIAccessor implements UIAccessor {
     private final Server server;
+    private final Map<String, String> registeredUIs = new java.util.concurrent.ConcurrentHashMap<>();
     
     public HytaleUIAccessor(Server server) { 
         this.server = server; 
+    }
+    
+    @Override
+    public void registerUI(String uiId, String uiDef) {
+        registeredUIs.put(uiId, uiDef);
+        // TODO In a real implementation, we would register this with the Hytale server
+        // so it knows about the UI ID and its definition.
+        // server.registerUI(uiId, uiDef);
     }
     
     @Override 
     public void openUI(UUID playerId, String uiId, Object context) {
         Player player = PlayerRefCache.get(playerId);
         if (player != null) {
-            player.openUI(uiId, context);
+            // If we have a registered definition and no context, pass the definition
+            // This mimics the behavior in addHud where content is passed as the object
+            if (context == null && registeredUIs.containsKey(uiId)) {
+                player.openUI(uiId, registeredUIs.get(uiId));
+            } else {
+                player.openUI(uiId, context);
+            }
         }
     }
 

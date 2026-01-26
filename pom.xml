@@ -55,7 +55,40 @@
             <artifactId>argonath-bag-end-core</artifactId>
             <version>${project.version}</version>
         </dependency>
-
+        
+        <!-- HyQuest API Client - For Quest Designer integration -->
+        <dependency>
+            <groupId>com.argonathsystems.lib</groupId>
+            <artifactId>hyquest-api-client</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        
+        <!-- Quest Framework - To convert between formats -->
+        <dependency>
+            <groupId>com.argonathsystems.framework</groupId>
+            <artifactId>argonath-fellowship-quest</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>        
+        <!-- Javalin - Lightweight HTTP framework for REST API -->
+        <dependency>
+            <groupId>io.javalin</groupId>
+            <artifactId>javalin</artifactId>
+            <version>6.1.3</version>
+        </dependency>
+        
+        <!-- SLF4J Simple Logger for Javalin -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.16</version>
+        </dependency>
+        
+        <!-- Gson for JSON serialization (used by HyQuestApiService) -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.11.0</version>
+        </dependency>
         <!-- =====================================================
              TEST DEPENDENCIES
              ===================================================== -->

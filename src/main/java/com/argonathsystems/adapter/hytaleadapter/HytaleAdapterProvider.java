@@ -23,6 +23,7 @@ public class HytaleAdapterProvider implements AccessorProvider {
     private final HytaleCommandAccessor commandAccessor;
     private final HytaleConfigAccessor configAccessor;
     private final HytaleAssetAccessor assetAccessor;
+    private final HytaleGuildAccessor guildAccessor;
     
     // Internal
     private final HytaleWorldExecutor worldExecutor;
@@ -48,6 +49,7 @@ public class HytaleAdapterProvider implements AccessorProvider {
         this.commandAccessor = new HytaleCommandAccessor(server);
         this.configAccessor = new HytaleConfigAccessor(server);
         this.assetAccessor = new HytaleAssetAccessor(server);
+        this.guildAccessor = new HytaleGuildAccessor();
     }
     
     @Override public PlayerAccessor getPlayerAccessor() { return playerAccessor; }
@@ -65,6 +67,7 @@ public class HytaleAdapterProvider implements AccessorProvider {
     @Override public CommandAccessor getCommandAccessor() { return commandAccessor; }
     @Override public ConfigAccessor getConfigAccessor() { return configAccessor; }
     @Override public AssetAccessor getAssetAccessor() { return assetAccessor; }
+    @Override public GuildAccessor getGuildAccessor() { return guildAccessor; }
     
     @Override 
     public com.argonathsystems.framework.accessorapi.thread.WorldExecutor getWorldExecutor() { 
