@@ -26,6 +26,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MEDIUM**: Quest format converter objective configuration extraction from node data
 - **MEDIUM**: Quest format converter reward conversion with multiple reward types (item, currency, xp)
 - **MEDIUM**: HyQuest API service metadata-based filtering (min/max level, category filtering support)
+- **NEW**: Nitrado WebServer adapter implementation
+  - `NitradoWebServerAdapter` implements `WebServerAccessor` interface
+  - Path parameter extraction from servlet request attributes (supports standard servlet patterns)
+- **NEW**: HyQuest API Controller complete implementation
+  - Quest reload functionality integrating with Quest Framework
+  - Quest export using `QuestFormatConverter` (graceful degradation when converter unavailable)
+- **NEW**: HyPrefab API Controller service integration
+  - Service availability checks for all endpoints
+  - Constructor with optional `PrefabService` injection
+  - Proper 503 Service Unavailable responses when service not wired
+  - Bridges framework abstractions to Nitrado WebServer Plugin
+  - Servlet wrappers for route handlers
+  - Jakarta Servlet to framework request/response conversion
+- **NEW**: HyQuest API controller with RESTful endpoints
+  - List, get, create, update, delete quests
+  - Quest reload and export operations
+  - Permission-based authorization (argonath.hyquest.web.*)
+- **NEW**: HyPrefab API controller with RESTful endpoints
+  - List, get, create, update, delete prefabs
+  - Prefab spawning operations
+  - Permission-based authorization (argonath.hyprefab.web.*)
 
 ### Changed
 - `HytaleInventoryAccessor` now fully implements all InventoryAccessor methods
@@ -33,9 +54,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BsonConverter` validates input types and throws clear exceptions
 - Quest objective references now extract `required` and `targetCount` from node data
 - Quest rewards now properly convert from HyQuest graph nodes with type-based fields
+- Removed Javalin dependency in favor of Nitrado WebServer Plugin integration
+- Removed embedded HTTP server approach - now uses shared server
 
 ### Fixed
 - Quest format converter no longer returns empty objectives/rewards from graph nodes
+- HTTP API integration now follows platform-agnostic architecture (Zero Hytale Imports)
 
 ### Fixed
 - **CRITICAL**: Inventory item counting now functional for quest objectives

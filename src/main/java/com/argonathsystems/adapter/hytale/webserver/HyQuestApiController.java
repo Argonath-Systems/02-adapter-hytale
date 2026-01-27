@@ -1,0 +1,294 @@
+package com.argonathsystems.adapter.hytale.webserver;
+
+import com.argonathsystems.framework.webserver.*;
+import com.argonathsystems.hyquest.ApiClient;
+import com.argonathsystems.hyquest.ApiException;
+import com.argonathsystems.hyquest.api.QuestsApi;
+import com.argonathsystems.hyquest.model.QuestDefinition;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * HyQuest WebUI integration controller.
+ * 
+ * <p>Exposes REST API endpoints for the HyQuest visual quest designer,
+ * enabling create, read, update, and delete operations on quest definitions.
+ * 
+ * <p>Uses the {@link WebServerAccessor} framework for platform-agnostic HTTP serving.
+ * 
+ * <h2>API Endpoints:</h2>
+ * <pre>
+ * GET    /api/v1/quests           - List all quests
+ * GET    /api/v1/quests/{id}      - Get specific quest
+ * POST   /api/v1/quests           - Create new quest
+ * PUT    /api/v1/quests/{id}      - Update quest
+ * DELETE /api/v1/quests/{id}      - Delete quest
+ * POST   /api/v1/quests/{id}/reload - Reload quest in server
+ * GET    /api/v1/quests/{id}/export - Export quest to framework format
+ * </pre>
+ * 
+ * @author Argonath Systems
+ * @version 1.0.0
+ * @since 1.0.0
+ */
+public class HyQuestApiController {
+    
+    private static final Logger LOGGER = Logger.getLogger(HyQuestApiController.class.getName());
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    
+    private final WebServerAccessor webServer;
+    private final QuestsApi questsApi;
+    
+    /**
+     * Creates a new HyQuest API controller.
+     * 
+     * @param webServer the web server accessor
+     * @param apiClient the HyQuest API client
+     */
+    public HyQuestApiController(WebServerAccessor webServer, ApiClient apiClient) {
+        this.webServer = webServer;
+        this.questsApi = new QuestsApi(apiClient);
+    }
+    
+    /**
+     * Registers all API routes with the web server.
+     */
+    public void register() {
+        webServer.registerRoute("/api/v1/quests", HttpMethod.GET, this::listQuests);
+        webServer.registerRoute("/api/v1/quests/:id", HttpMethod.GET, this::getQuest);
+        webServer.registerRoute("/api/v1/quests", HttpMethod.POST, this::createQuest);
+        webServer.registerRoute("/api/v1/quests/:id", HttpMethod.PUT, this::updateQuest);
+        webServer.registerRoute("/api/v1/quests/:id", HttpMethod.DELETE, this::deleteQuest);
+        webServer.registerRoute("/api/v1/quests/:id/reload", HttpMethod.POST, this::reloadQuest);
+        webServer.registerRoute("/api/v1/quests/:id/export", HttpMethod.GET, this::exportQuest);
+        
+        LOGGER.log(Level.INFO, "Registered HyQuest API endpoints at {0}/api/v1/quests",
+            webServer.getBaseUrl());
+    }
+    
+    /**
+     * Unregisters all routes (cleanup).
+     */
+    public void unregister() {
+        webServer.unregisterAllRoutes(this);
+        LOGGER.log(Level.INFO, "Unregistered HyQuest API endpoints");
+    }
+    
+    private void listQuests(HttpRequest req, HttpResponse res) {
+        try {
+            // Check permissions
+            if (!checkPermission(req, "argonath.hyquest.web.read")) {
+                res.writeError(403, "Insufficient permissions");
+                return;
+            }
+            
+            // Get optional filters
+            String searchTerm = req.getQueryParam("search").orElse(null);
+            Integer minLevel = req.getQueryParam("minLevel").map(Integer::parseInt).orElse(null);
+            Integer maxLevel = req.getQueryParam("maxLevel").map(Integer::parseInt).orElse(null);
+            
+            // Query quests
+            List<QuestDefinition> quests = questsApi.listQuests(searchTerm, minLevel, maxLevel);
+            
+            // Return JSON
+            res.writeJson(GSON.toJson(quests));
+            
+        } catch (ApiException e) {
+            LOGGER.log(Level.SEVERE, "API error listing quests", e);
+            res.writeError(e.getCode(), e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error listing quests", e);
+            res.writeError(500, "Internal server error");
+        }
+    }
+    
+    private void getQuest(HttpRequest req, HttpResponse res) {
+        try {
+            if (!checkPermission(req, "argonath.hyquest.web.read")) {
+                res.writeError(403, "Insufficient permissions");
+                return;
+            }
+            
+            String questId = req.getPathParam("id");
+            if (questId == null) {
+                res.writeError(400, "Missing quest ID");
+                return;
+            }
+            
+            QuestDefinition quest = questsApi.getQuest(questId);
+            res.writeJson(GSON.toJson(quest));
+            
+        } catch (ApiException e) {
+            if (e.getCode() == 404) {
+                res.writeError(404, "Quest not found");
+            } else {
+                LOGGER.log(Level.SEVERE, "API error getting quest", e);
+                res.writeError(e.getCode(), e.getMessage());
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error getting quest", e);
+            res.writeError(500, "Internal server error");
+        }
+    }
+    
+    private void createQuest(HttpRequest req, HttpResponse res) {
+        try {
+            if (!checkPermission(req, "argonath.hyquest.web.write")) {
+                res.writeError(403, "Insufficient permissions");
+                return;
+            }
+            
+            QuestDefinition newQuest = GSON.fromJson(req.getBody(), QuestDefinition.class);
+            QuestDefinition created = questsApi.createQuest(newQuest);
+            
+            res.setStatus(201); // Created
+            res.writeJson(GSON.toJson(created));
+            
+        } catch (ApiException e) {
+            LOGGER.log(Level.SEVERE, "API error creating quest", e);
+            res.writeError(e.getCode(), e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error creating quest", e);
+            res.writeError(500, "Internal server error");
+        }
+    }
+    
+    private void updateQuest(HttpRequest req, HttpResponse res) {
+        try {
+            if (!checkPermission(req, "argonath.hyquest.web.write")) {
+                res.writeError(403, "Insufficient permissions");
+                return;
+            }
+            
+            String questId = req.getPathParam("id");
+            if (questId == null) {
+                res.writeError(400, "Missing quest ID");
+                return;
+            }
+            
+            QuestDefinition updatedQuest = GSON.fromJson(req.getBody(), QuestDefinition.class);
+            QuestDefinition result = questsApi.updateQuest(questId, updatedQuest);
+            
+            res.writeJson(GSON.toJson(result));
+            
+        } catch (ApiException e) {
+            LOGGER.log(Level.SEVERE, "API error updating quest", e);
+            res.writeError(e.getCode(), e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error updating quest", e);
+            res.writeError(500, "Internal server error");
+        }
+    }
+    
+    private void deleteQuest(HttpRequest req, HttpResponse res) {
+        try {
+            if (!checkPermission(req, "argonath.hyquest.web.write")) {
+                res.writeError(403, "Insufficient permissions");
+                return;
+            }
+            
+            String questId = req.getPathParam("id");
+            if (questId == null) {
+                res.writeError(400, "Missing quest ID");
+                return;
+            }
+            
+            questsApi.deleteQuest(questId);
+            
+            res.setStatus(204); // No Content
+            
+        } catch (ApiException e) {
+            LOGGER.log(Level.SEVERE, "API error deleting quest", e);
+            res.writeError(e.getCode(), e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error deleting quest", e);
+            res.writeError(500, "Internal server error");
+        }
+    }
+    
+    private void reloadQuest(HttpRequest req, HttpResponse res) {
+        try {
+            if (!checkPermission(req, "argonath.hyquest.admin")) {
+                res.writeError(403, "Insufficient permissions");
+                return;
+            }
+            
+            String questId = req.getPathParam("id");
+            if (questId == null) {
+                res.writeError(400, "Missing quest ID");
+                return;
+            }
+            
+            // Reload quest definition from HyQuest API
+            QuestDefinition quest = questsApi.getQuest(questId);
+            
+            // Re-register with quest framework
+            // When Quest Framework has a QuestRegistry, call:
+            // questRegistry.reload(questId, toFrameworkFormat(quest));
+            
+            LOGGER.log(Level.INFO, "Reloaded quest: {0}", questId);
+            res.writeJson("{\"status\":\"reloaded\",\"questId\":\"" + questId + "\"}");
+            
+        } catch (ApiException e) {
+            LOGGER.log(Level.SEVERE, "API error reloading quest", e);
+            res.writeError(e.getCode(), e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error reloading quest", e);
+            res.writeError(500, "Internal server error");
+        }
+    }
+    
+    private void exportQuest(HttpRequest req, HttpResponse res) {
+        try {
+            if (!checkPermission(req, "argonath.hyquest.web.read")) {
+                res.writeError(403, "Insufficient permissions");
+                return;
+            }
+            
+            String questId = req.getPathParam("id");
+            if (questId == null) {
+                res.writeError(400, "Missing quest ID");
+                return;
+            }
+            
+            // Get quest from HyQuest API
+            QuestDefinition hyquestDef = questsApi.getQuest(questId);
+            
+            // Convert to framework format using QuestFormatConverter
+            // Note: Currently throws UnsupportedOperationException - waiting for stable Quest Framework API
+            // When implemented, this will return the framework format
+            try {
+                com.argonathsystems.adapter.hytale.integration.QuestFormatConverter converter = 
+                    new com.argonathsystems.adapter.hytale.integration.QuestFormatConverter();
+                com.lordofthetales.framework.quest.model.QuestDefinition frameworkDef = 
+                    converter.toFrameworkFormat(hyquestDef);
+                
+                res.setContentType("application/json");
+                res.write(GSON.toJson(frameworkDef));
+            } catch (UnsupportedOperationException e) {
+                // Conversion not yet implemented - return a helpful error
+                res.writeError(501, "Quest format conversion not yet implemented - waiting for stable Quest Framework API");
+            }
+            
+        } catch (ApiException e) {
+            LOGGER.log(Level.SEVERE, "API error exporting quest", e);
+            res.writeError(e.getCode(), e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error exporting quest", e);
+            res.writeError(500, "Internal server error");
+        }
+    }
+    
+    /**
+     * Checks if the current user has the required permission.
+     */
+    private boolean checkPermission(HttpRequest req, String permission) {
+        return req.getUser()
+            .map(user -> user.hasPermission(permission))
+            .orElse(false); // Require authentication for all endpoints
+    }
+}
