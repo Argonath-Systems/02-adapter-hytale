@@ -2,6 +2,7 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 
 import com.hytale.api.Server;
 import com.argonathsystems.framework.accessorapi.EventAccessor;
+import com.argonathsystems.framework.accessorapi.event.AccessorEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,29 +12,30 @@ import java.util.function.Consumer;
 
 public class HytaleEventAccessor implements EventAccessor {
     private final Server server;
-    private final Map<Class<?>, List<Consumer<?>>> listeners = new ConcurrentHashMap<>();
+    private final Map<Class<? extends AccessorEvent>, List<Consumer<? extends AccessorEvent>>> listeners = new ConcurrentHashMap<>();
 
     public HytaleEventAccessor(Server server) {
         this.server = server;
     }
 
     @Override
-    public <T> EventRegistration register(Class<T> eventType, Consumer<T> listener) {
+    public <T extends AccessorEvent> EventRegistration register(Class<T> eventType, Consumer<T> listener) {
         return register(eventType, listener, 0);
     }
 
     @Override
-    public <T> EventRegistration register(Class<T> eventType, Consumer<T> listener, int priority) {
-        listeners.computeIfAbsent(eventType, k -> new ArrayList<>()).add(listener);
+    @SuppressWarnings("unchecked")
+    public <T extends AccessorEvent> EventRegistration register(Class<T> eventType, Consumer<T> listener, int priority) {
+        listeners.computeIfAbsent(eventType, k -> new ArrayList<>()).add((Consumer<AccessorEvent>) listener);
         return new EventRegistration() {
             @Override
-            public Class<?> getEventType() {
+            public Class<? extends AccessorEvent> getEventType() {
                 return eventType;
             }
 
             @Override
             public void unregister() {
-                List<Consumer<?>> list = listeners.get(eventType);
+                List<Consumer<? extends AccessorEvent>> list = listeners.get(eventType);
                 if (list != null) {
                     list.remove(listener);
                 }
@@ -53,11 +55,11 @@ public class HytaleEventAccessor implements EventAccessor {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> T emit(T event) {
-        List<Consumer<?>> list = listeners.get(event.getClass());
+    public <T extends AccessorEvent> T emit(T event) {
+        List<Consumer<? extends AccessorEvent>> list = listeners.get(event.getClass());
         if (list != null) {
             // Create a copy to avoid concurrent modification issues during iteration
-            for (Consumer<?> consumer : new ArrayList<>(list)) {
+            for (Consumer<? extends AccessorEvent> consumer : new ArrayList<>(list)) {
                 try {
                     ((Consumer<T>) consumer).accept(event);
                 } catch (Exception e) {

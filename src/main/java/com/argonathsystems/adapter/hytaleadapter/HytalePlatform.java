@@ -1,11 +1,10 @@
 package com.argonathsystems.adapter.hytaleadapter;
 
 import com.argonathsystems.adapter.hytaleadapter.listener.HytaleAdapterEventListener;
+import com.argonathsystems.adapter.hytaleadapter.accessor.HytaleEventAccessor;
 import com.argonathsystems.framework.accessorapi.AccessorRegistry;
 import com.hytale.api.Server;
 import com.hytale.api.plugin.Plugin;
-
-import com.argonathsystems.adapter.hytaleadapter.accessor.HytaleEventAccessor;
 
 public class HytalePlatform implements Plugin {
     private Server server;

@@ -1,0 +1,207 @@
+package com.argonathsystems.adapter.hytaleadapter.accessor;
+
+import com.argonathsystems.adapter.hytaleadapter.converter.LocationConverter;
+import com.argonathsystems.framework.accessorapi.LootTableAccessor;
+import com.argonathsystems.framework.accessorapi.dto.LocationData;
+import com.hytale.api.Server;
+import com.hytale.api.item.ItemStack;
+import com.hytale.api.registry.Registry;
+import com.hytale.api.world.World;
+import com.hytale.api.entity.Player;
+import com.hytale.api.entity.EntityRef;
+import com.hytale.api.loot.LootTable;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Hytale implementation of LootTableAccessor.
+ * 
+ * <p>Translates platform-agnostic loot table operations to Hytale API calls.
+ * 
+ * @author Argonath Systems
+ * @since 1.1.0
+ */
+public class HytaleLootTableAccessor implements LootTableAccessor {
+    
+    private final Server server;
+    private final Map<UUID, Player> playerCache = new ConcurrentHashMap<>();
+    
+    public HytaleLootTableAccessor(Server server) {
+        this.server = server;
+    }
+    
+    @Override
+    public List<LootDrop> rollLoot(String lootTableId) {
+        return rollLoot(lootTableId, LootContext.defaults());
+    }
+    
+    @Override
+    public List<LootDrop> rollLoot(String lootTableId, LootContext context) {
+        Registry registry = server.getRegistry();
+        LootTable lootTable = registry.getLootTable(lootTableId);
+        
+        if (lootTable == null) {
+            return Collections.emptyList();
+        }
+        
+        // Apply luck modifier to loot table
+        float luck = context.luckModifier();
+        List<ItemStack> results = lootTable.roll(luck);
+        
+        return convertToLootDrops(results, false);
+    }
+    
+    @Override
+    public List<UUID> dropLoot(String lootTableId, LocationData location) {
+        return dropLoot(lootTableId, location, LootContext.defaults());
+    }
+    
+    @Override
+    public List<UUID> dropLoot(String lootTableId, LocationData location, LootContext context) {
+        List<LootDrop> drops = rollLoot(lootTableId, context);
+        List<UUID> entityIds = new ArrayList<>();
+        
+        World world = server.getWorld(location.world());
+        if (world == null) {
+            return entityIds;
+        }
+        
+        var pos = LocationConverter.fromDTO(location);
+        
+        for (LootDrop drop : drops) {
+            // Spawn item entity in world
+            ItemStack itemStack = createItemStack(drop.itemId(), drop.quantity(), drop.itemData());
+            if (itemStack != null) {
+                EntityRef itemEntity = world.dropItem(pos, itemStack);
+                if (itemEntity != null) {
+                    entityIds.add(itemEntity.getUUID());
+                }
+            }
+        }
+        
+        return entityIds;
+    }
+    
+    @Override
+    public List<LootDrop> giveLoot(String lootTableId, UUID playerId) {
+        return giveLoot(lootTableId, playerId, LootContext.defaults());
+    }
+    
+    @Override
+    public List<LootDrop> giveLoot(String lootTableId, UUID playerId, LootContext context) {
+        List<LootDrop> drops = rollLoot(lootTableId, context);
+        List<LootDrop> result = new ArrayList<>();
+        
+        Player player = getPlayer(playerId);
+        if (player == null) {
+            return drops; // Return as not-in-inventory
+        }
+        
+        for (LootDrop drop : drops) {
+            ItemStack itemStack = createItemStack(drop.itemId(), drop.quantity(), drop.itemData());
+            if (itemStack == null) continue;
+            
+            boolean added = player.getInventory().addItem(itemStack);
+            if (added) {
+                result.add(new LootDrop(drop.itemId(), drop.quantity(), drop.itemData(), true));
+            } else {
+                // Inventory full, drop at player location
+                World world = player.getWorld();
+                if (world != null) {
+                    world.dropItem(player.getPosition(), itemStack);
+                }
+                result.add(new LootDrop(drop.itemId(), drop.quantity(), drop.itemData(), false));
+            }
+        }
+        
+        return result;
+    }
+    
+    @Override
+    public boolean exists(String lootTableId) {
+        Registry registry = server.getRegistry();
+        return registry.getLootTable(lootTableId) != null;
+    }
+    
+    @Override
+    public List<LootPreview> preview(String lootTableId) {
+        Registry registry = server.getRegistry();
+        LootTable lootTable = registry.getLootTable(lootTableId);
+        
+        if (lootTable == null) {
+            return Collections.emptyList();
+        }
+        
+        List<LootPreview> previews = new ArrayList<>();
+        
+        // Get expected drops from loot table (implementation depends on Hytale API)
+        // This is a simplified version - actual implementation would query the table structure
+        for (var entry : lootTable.getEntries()) {
+            previews.add(new LootPreview(
+                entry.getItemId(),
+                entry.getMinCount(),
+                entry.getMaxCount(),
+                entry.getDropChance(),
+                entry.getRarity()
+            ));
+        }
+        
+        return previews;
+    }
+    
+    private List<LootDrop> convertToLootDrops(List<ItemStack> items, boolean inInventory) {
+        List<LootDrop> drops = new ArrayList<>();
+        
+        for (ItemStack item : items) {
+            if (item != null && !item.isEmpty()) {
+                drops.add(new LootDrop(
+                    item.getTypeId(),
+                    item.getCount(),
+                    item.getCustomData(),
+                    inInventory
+                ));
+            }
+        }
+        
+        return drops;
+    }
+    
+    private ItemStack createItemStack(String itemId, int quantity, Map<String, Object> itemData) {
+        Registry registry = server.getRegistry();
+        ItemStack stack = registry.createItemStack(itemId, quantity);
+        
+        if (stack != null && itemData != null && !itemData.isEmpty()) {
+            for (Map.Entry<String, Object> entry : itemData.entrySet()) {
+                stack.setCustomData(entry.getKey(), entry.getValue());
+            }
+        }
+        
+        return stack;
+    }
+    
+    private Player getPlayer(UUID playerId) {
+        Player cached = playerCache.get(playerId);
+        if (cached != null && cached.isOnline()) {
+            return cached;
+        }
+        
+        Player player = server.getPlayer(playerId);
+        if (player != null) {
+            playerCache.put(playerId, player);
+        }
+        return player;
+    }
+    
+    /**
+     * Clears cached player references.
+     * Should be called when players disconnect.
+     */
+    public void clearPlayerCache(UUID playerId) {
+        playerCache.remove(playerId);
+    }
+}

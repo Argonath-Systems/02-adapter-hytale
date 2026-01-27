@@ -9,7 +9,7 @@ public class HytaleAdapterProvider implements AccessorProvider {
     private final Server server;
     // Cached accessors
     private final HytalePlayerAccessor playerAccessor;
-    private final HytaleEntityAccessor entityAccessor;
+    private final HytaleNPCEntityAccessor entityAccessor;  // Using NPC variant which implements EntityAccessor
     private final HytaleItemAccessor itemAccessor;
     private final HytaleInventoryAccessor inventoryAccessor;
     private final HytaleWorldAccessor worldAccessor;
@@ -35,7 +35,7 @@ public class HytaleAdapterProvider implements AccessorProvider {
         // Initialize accessors
         // Note: Some might require worldExecutor or other deps if improved later.
         this.playerAccessor = new HytalePlayerAccessor(server);
-        this.entityAccessor = new HytaleEntityAccessor(server);
+        this.entityAccessor = new HytaleNPCEntityAccessor(server);
         this.itemAccessor = new HytaleItemAccessor(server); 
         this.inventoryAccessor = new HytaleInventoryAccessor(server);
         this.worldAccessor = new HytaleWorldAccessor(server);
