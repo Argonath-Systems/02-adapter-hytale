@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [2.0.0] - 2026-01-27
+
+### Added
+- **BREAKING**: `HytalePlayerEntity` record wrapper implementing `PlatformEntity`
+- Bidirectional conversion helpers for YAML serialization (`convertObjectToDataValue`, `convertDataValueToObject`)
+- `convertUIUpdateData()` method to bridge type-safe API to platform Object types
+- Pattern matching switches for all `DataValue` and `UIUpdateData` variants
+
+### Changed
+- **BREAKING**: `HytaleStorageAccessor` internal cache now uses `Map<String, DataValue>` instead of `Map<String, Object>`
+- **BREAKING**: `HytaleCommandAccessor` updated to use `CommandSender` interface
+- **BREAKING**: `HytalePlayerAccessor.getPlayerId()` now returns `PlatformEntity` wrapper
+- **BREAKING**: `HytaleUIAccessor` methods updated to accept type-safe parameters (UIContext, UIUpdateData, HudLayoutData)
+- All storage methods now use `DataValue.of()` factory methods
+- Added YAML-compatible Object conversion for persistence layer
+
+### Removed
+- **BREAKING**: Unsafe `register(Object)` method from command accessor
+
+## [1.0.0] - 2026-01-25 (Previous Entry)
+
+### Added
 - **CRITICAL**: Event system fully implemented
   - `HytaleEventAccessor` with register/emit/unregister functionality
   - `HytaleAdapterEventListener` bridging Hytale events to framework events
