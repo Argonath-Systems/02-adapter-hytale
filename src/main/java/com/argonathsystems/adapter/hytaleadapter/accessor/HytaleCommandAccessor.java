@@ -1,8 +1,17 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
 import com.argonathsystems.framework.accessorapi.CommandAccessor;
+import com.argonathsystems.framework.accessorapi.command.CommandSender;
 import com.hytale.api.Server;
 
+/**
+ * Hytale implementation of CommandAccessor.
+ * 
+ * <p>Wraps Hytale's command registration system with our type-safe API.
+ * 
+ * @author Argonath Systems Team
+ * @version 2.0.0
+ */
 public class HytaleCommandAccessor implements CommandAccessor {
     private final Server server;
 
@@ -13,12 +22,23 @@ public class HytaleCommandAccessor implements CommandAccessor {
     @Override
     public void register(String command, CommandExecutor executor) {
         // TODO: Implement Hytale command registration when API is available
-        // server.getCommandManager().register(command, ...);
+        // We'll need to wrap the CommandSender interface with Hytale's command sender
         server.getLogger().info("Registered command: " + command);
+        
+        /* Future implementation will look like:
+        server.getCommandManager().register(command, (hytaleCommandSender, args) -> {
+            CommandSender sender = createCommandSender(hytaleCommandSender);
+            return executor.execute(sender, args);
+        });
+        */
     }
-
-    @Override
-    public void register(Object command) {
-        throw new UnsupportedOperationException("Platform-specific command registration not yet implemented");
+    
+    /**
+     * Converts Hytale's command sender to our CommandSender interface.
+     * This will be implemented when the real Hytale SDK is available.
+     */
+    private CommandSender createCommandSender(Object hytaleCommandSender) {
+        // TODO: Implement conversion
+        throw new UnsupportedOperationException("Waiting for Hytale SDK");
     }
 }

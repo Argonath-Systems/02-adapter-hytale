@@ -1,6 +1,7 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
 import com.argonathsystems.framework.accessorapi.StorageAccessor;
+import com.argonathsystems.framework.accessorapi.data.DataValue;
 import com.hytale.api.Server;
 import com.hytale.api.data.DataStorage;
 import com.hytale.api.data.DataContainer;
@@ -27,7 +28,7 @@ public class HytaleStorageAccessor implements StorageAccessor {
     private final Server server;
     
     /** In-memory cache for fast access. Maps namespace -> (key -> value) */
-    private final Map<String, Map<String, Object>> cache = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, DataValue>> cache = new ConcurrentHashMap<>();
     
     /** Tracks dirty namespaces that need to be flushed to persistent storage */
     private final Set<String> dirtyNamespaces = ConcurrentHashMap.newKeySet();
@@ -43,40 +44,35 @@ public class HytaleStorageAccessor implements StorageAccessor {
     @Override
     public void setString(String namespace, String key, String value) {
         validateParams(namespace, key);
-        getOrCreateNamespace(namespace).put(key, value);
+        getOrCreateNamespace(namespace).put(key, DataValue.of(value));
         markDirty(namespace);
     }
 
     @Override
     public Optional<String> getString(String namespace, String key) {
         validateParams(namespace, key);
-        Object value = getNamespace(namespace).get(key);
-        return value instanceof String s ? Optional.of(s) : Optional.empty();
+        DataValue value = getNamespace(namespace).get(key);
+        return value != null ? value.asString() : Optional.empty();
     }
 
     @Override
     public void setInt(String namespace, String key, int value) {
         validateParams(namespace, key);
-        getOrCreateNamespace(namespace).put(key, value);
+        getOrCreateNamespace(namespace).put(key, DataValue.of(value));
         markDirty(namespace);
     }
 
     @Override
     public Optional<Integer> getInt(String namespace, String key) {
         validateParams(namespace, key);
-        Object value = getNamespace(namespace).get(key);
-        if (value instanceof Integer i) {
-            return Optional.of(i);
-        } else if (value instanceof Number n) {
-            return Optional.of(n.intValue());
-        }
-        return Optional.empty();
+        DataValue value = getNamespace(namespace).get(key);
+        return value != null ? value.asInt() : Optional.empty();
     }
 
     @Override
     public void remove(String namespace, String key) {
         validateParams(namespace, key);
-        Map<String, Object> ns = cache.get(namespace);
+        Map<String, DataValue> ns = cache.get(namespace);
         if (ns != null && ns.remove(key) != null) {
             markDirty(namespace);
         }
@@ -103,7 +99,7 @@ public class HytaleStorageAccessor implements StorageAccessor {
      */
     public void setLong(String namespace, String key, long value) {
         validateParams(namespace, key);
-        getOrCreateNamespace(namespace).put(key, value);
+        getOrCreateNamespace(namespace).put(key, DataValue.of(value));
         markDirty(namespace);
     }
 
@@ -112,13 +108,8 @@ public class HytaleStorageAccessor implements StorageAccessor {
      */
     public Optional<Long> getLong(String namespace, String key) {
         validateParams(namespace, key);
-        Object value = getNamespace(namespace).get(key);
-        if (value instanceof Long l) {
-            return Optional.of(l);
-        } else if (value instanceof Number n) {
-            return Optional.of(n.longValue());
-        }
-        return Optional.empty();
+        DataValue value = getNamespace(namespace).get(key);
+        return value != null ? value.asLong() : Optional.empty();
     }
 
     /**
@@ -126,7 +117,7 @@ public class HytaleStorageAccessor implements StorageAccessor {
      */
     public void setDouble(String namespace, String key, double value) {
         validateParams(namespace, key);
-        getOrCreateNamespace(namespace).put(key, value);
+        getOrCreateNamespace(namespace).put(key, DataValue.of(value));
         markDirty(namespace);
     }
 
@@ -135,13 +126,8 @@ public class HytaleStorageAccessor implements StorageAccessor {
      */
     public Optional<Double> getDouble(String namespace, String key) {
         validateParams(namespace, key);
-        Object value = getNamespace(namespace).get(key);
-        if (value instanceof Double d) {
-            return Optional.of(d);
-        } else if (value instanceof Number n) {
-            return Optional.of(n.doubleValue());
-        }
-        return Optional.empty();
+        DataValue value = getNamespace(namespace).get(key);
+        return value != null ? value.asDouble() : Optional.empty();
     }
 
     /**
@@ -149,7 +135,7 @@ public class HytaleStorageAccessor implements StorageAccessor {
      */
     public void setBoolean(String namespace, String key, boolean value) {
         validateParams(namespace, key);
-        getOrCreateNamespace(namespace).put(key, value);
+        getOrCreateNamespace(namespace).put(key, DataValue.of(value));
         markDirty(namespace);
     }
 
@@ -158,8 +144,8 @@ public class HytaleStorageAccessor implements StorageAccessor {
      */
     public Optional<Boolean> getBoolean(String namespace, String key) {
         validateParams(namespace, key);
-        Object value = getNamespace(namespace).get(key);
-        return value instanceof Boolean b ? Optional.of(b) : Optional.empty();
+        DataValue value = getNamespace(namespace).get(key);
+        return value != null ? value.asBool() : Optional.empty();
     }
 
     /**
@@ -167,23 +153,27 @@ public class HytaleStorageAccessor implements StorageAccessor {
      */
     public void setStringList(String namespace, String key, List<String> value) {
         validateParams(namespace, key);
-        getOrCreateNamespace(namespace).put(key, new ArrayList<>(value));
+        List<DataValue> dataValues = value.stream()
+            .map(DataValue::of)
+            .collect(Collectors.toList());
+        getOrCreateNamespace(namespace).put(key, DataValue.of(dataValues));
         markDirty(namespace);
     }
 
     /**
      * Gets a string list value.
      */
-    @SuppressWarnings("unchecked")
     public Optional<List<String>> getStringList(String namespace, String key) {
         validateParams(namespace, key);
-        Object value = getNamespace(namespace).get(key);
-        if (value instanceof List<?> list) {
-            List<String> result = list.stream()
-                .filter(String.class::isInstance)
-                .map(String.class::cast)
-                .collect(Collectors.toList());
-            return Optional.of(result);
+        DataValue value = getNamespace(namespace).get(key);
+        if (value != null) {
+            return value.asList().map(list ->
+                list.stream()
+                    .map(DataValue::asString)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .collect(Collectors.toList())
+            );
         }
         return Optional.empty();
     }
@@ -235,17 +225,17 @@ public class HytaleStorageAccessor implements StorageAccessor {
         
         for (String namespace : toFlush) {
             String storageKey = STORAGE_PREFIX + namespace;
-            Map<String, Object> data = cache.get(namespace);
+            Map<String, DataValue> data = cache.get(namespace);
             
             if (data == null || data.isEmpty()) {
                 // Delete empty namespaces
                 storage.delete(storageKey);
             } else {
-                // Save to persistent storage
+                // Save to persistent storage - convert DataValue to platform Object
                 DataContainer container = storage.getOrCreate(storageKey);
                 container.clear();
-                for (Map.Entry<String, Object> entry : data.entrySet()) {
-                    container.set(entry.getKey(), entry.getValue());
+                for (Map.Entry<String, DataValue> entry : data.entrySet()) {
+                    container.set(entry.getKey(), convertToObject(entry.getValue()));
                 }
                 container.save();
             }
@@ -279,9 +269,9 @@ public class HytaleStorageAccessor implements StorageAccessor {
                 DataContainer container = storage.get(storageKey);
                 
                 if (container != null) {
-                    Map<String, Object> namespaceData = new ConcurrentHashMap<>();
+                    Map<String, DataValue> namespaceData = new ConcurrentHashMap<>();
                     for (String key : container.getKeys()) {
-                        namespaceData.put(key, container.get(key));
+                        namespaceData.put(key, convertFromObject(container.get(key)));
                     }
                     cache.put(namespace, namespaceData);
                 }
@@ -289,11 +279,11 @@ public class HytaleStorageAccessor implements StorageAccessor {
         }
     }
 
-    private Map<String, Object> getNamespace(String namespace) {
+    private Map<String, DataValue> getNamespace(String namespace) {
         return cache.getOrDefault(namespace, Collections.emptyMap());
     }
 
-    private Map<String, Object> getOrCreateNamespace(String namespace) {
+    private Map<String, DataValue> getOrCreateNamespace(String namespace) {
         return cache.computeIfAbsent(namespace, k -> new ConcurrentHashMap<>());
     }
 
@@ -312,5 +302,54 @@ public class HytaleStorageAccessor implements StorageAccessor {
         if (namespace == null || namespace.isEmpty()) {
             throw new IllegalArgumentException("Namespace cannot be null or empty");
         }
+    }
+
+    /**
+     * Converts DataValue to platform Object for persistence.
+     */
+    private Object convertToObject(DataValue dataValue) {
+        return switch (dataValue) {
+            case DataValue.StringValue(String value) -> value;
+            case DataValue.IntValue(int value) -> value;
+            case DataValue.LongValue(long value) -> value;
+            case DataValue.DoubleValue(double value) -> value;
+            case DataValue.BoolValue(boolean value) -> value;
+            case DataValue.ListValue(List<DataValue> list) ->
+                list.stream().map(this::convertToObject).collect(Collectors.toList());
+            case DataValue.MapValue(Map<String, DataValue> map) -> {
+                Map<String, Object> result = new HashMap<>();
+                map.forEach((k, v) -> result.put(k, convertToObject(v)));
+                yield result;
+            }
+        };
+    }
+
+    /**
+     * Converts platform Object to DataValue.
+     */
+    @SuppressWarnings("unchecked")
+    private DataValue convertFromObject(Object obj) {
+        if (obj instanceof String s) return DataValue.of(s);
+        if (obj instanceof Integer i) return DataValue.of(i);
+        if (obj instanceof Long l) return DataValue.of(l);
+        if (obj instanceof Double d) return DataValue.of(d);
+        if (obj instanceof Boolean b) return DataValue.of(b);
+        if (obj instanceof List<?> list) {
+            List<DataValue> values = list.stream()
+                .map(this::convertFromObject)
+                .collect(Collectors.toList());
+            return DataValue.of(values);
+        }
+        if (obj instanceof Map<?, ?> map) {
+            Map<String, DataValue> values = new HashMap<>();
+            map.forEach((k, v) -> {
+                if (k instanceof String key) {
+                    values.put(key, convertFromObject(v));
+                }
+            });
+            return DataValue.of(values);
+        }
+        // Fallback for unknown types - convert to string
+        return DataValue.of(obj.toString());
     }
 }

@@ -6,19 +6,35 @@ import com.argonathsystems.adapter.hytaleadapter.util.PlayerRefCache;
 import com.argonathsystems.framework.accessorapi.PlayerAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 import com.argonathsystems.framework.accessorapi.dto.PlayerData;
+import com.argonathsystems.framework.accessorapi.platform.PlatformEntity;
 import com.hytale.api.Server;
 import com.hytale.api.entity.Player;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Hytale implementation of PlayerAccessor.
+ * 
+ * @author Argonath Systems Team
+ * @version 2.0.0
+ */
 public class HytalePlayerAccessor implements PlayerAccessor {
     private final Server server;
 
     public HytalePlayerAccessor(Server server) {
         this.server = server;
+    }
+
+    /**
+     * Wrapper for Hytale's Player class to implement PlatformEntity.
+     */
+    public record HytalePlayerEntity(Player player) implements PlatformEntity {
+        @Override
+        public UUID getEntityId() {
+            return player.getUniqueId();
+        }
     }
 
     private Player getPlayerRef(UUID playerId) {
@@ -86,10 +102,7 @@ public class HytalePlayerAccessor implements PlayerAccessor {
     }
     
     @Override
-    public UUID getPlayerId(Object platformObject) {
-         if (platformObject instanceof Player) {
-             return ((Player) platformObject).getUniqueId();
-         }
-         return null;
+    public UUID getPlayerId(PlatformEntity platformEntity) {
+        return platformEntity.getEntityId();
     }
 }
