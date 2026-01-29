@@ -60,6 +60,27 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
     }
 
     @Override
+    public int countItem(UUID playerId, String itemId) {
+        throw new UnsupportedOperationException(
+            "HytaleInventoryAccessor.countItem() requires official Hytale SDK Inventory system"
+        );
+    }
+
+    @Override
+    public Optional<ItemData> getMainHandItem(UUID playerId) {
+        throw new UnsupportedOperationException(
+            "HytaleInventoryAccessor.getMainHandItem() requires official Hytale SDK Inventory system"
+        );
+    }
+
+    @Override
+    public int getEmptySlots(UUID playerId) {
+        throw new UnsupportedOperationException(
+            "HytaleInventoryAccessor.getEmptySlots() requires official Hytale SDK Inventory system"
+        );
+    }
+
+    @Override
     public void clearInventory(UUID playerId) {
         throw new UnsupportedOperationException(
             "HytaleInventoryAccessor.clearInventory() requires official Hytale SDK Inventory system"

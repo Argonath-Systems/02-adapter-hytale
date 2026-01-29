@@ -127,9 +127,37 @@ public class HytaleWorldAccessor implements WorldAccessor {
     }
 
     @Override
-    public void unloadChunk(int chunkX, int chunkZ) {
+    public boolean unloadChunk(int chunkX, int chunkZ) {
         throw new UnsupportedOperationException(
             "HytaleWorldAccessor.unloadChunk() requires official Hytale SDK ChunkManager"
+        );
+    }
+
+    @Override
+    public boolean hasWeather() {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.hasWeather() requires official Hytale SDK Weather system"
+        );
+    }
+
+    @Override
+    public Optional<LocationData> findSafeLocation(LocationData near, int radius) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.findSafeLocation() requires official Hytale SDK World location checking"
+        );
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> generateChunk(int x, int z) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.generateChunk() requires official Hytale SDK ChunkManager"
+        );
+    }
+
+    @Override
+    public void setBlock(Object world, int x, int y, int z, String blockId) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.setBlock(world,x,y,z,blockId) requires official Hytale SDK World/Block classes"
         );
     }
 }

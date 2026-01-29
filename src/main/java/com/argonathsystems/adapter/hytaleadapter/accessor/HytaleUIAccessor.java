@@ -9,12 +9,6 @@ import java.util.UUID;
 
 /**
  * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK & HyUI</p>
- * 
- * <p>This accessor implements UI/HUD operations.</p>
- * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
- * and HyUI integration which are not available in the development environment.</p>
- * 
- * <p>All methods throw UnsupportedOperationException until dependencies are available.</p>
  */
 public class HytaleUIAccessor implements UIAccessor {
     private final Object server;
@@ -59,7 +53,7 @@ public class HytaleUIAccessor implements UIAccessor {
     }
 
     @Override
-    public void addHud(UUID playerId, String hudId, HudLayoutData layout) {
+    public void addHud(UUID playerId, String hudId, String content) {
         throw new UnsupportedOperationException(
             "HytaleUIAccessor.addHud() requires HyUI HUD system"
         );
@@ -73,9 +67,37 @@ public class HytaleUIAccessor implements UIAccessor {
     }
 
     @Override
-    public void updateHud(UUID playerId, String hudId, String elementId, UIUpdateData data) {
+    public void updateHud(UUID playerId, String hudId, String content) {
         throw new UnsupportedOperationException(
             "HytaleUIAccessor.updateHud() requires HyUI HUD update system"
+        );
+    }
+
+    @Override
+    public void updateHudLayout(UUID playerId, HudLayoutData layoutData) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.updateHudLayout() requires HyUI HUD layout system"
+        );
+    }
+
+    @Override
+    public void openHudEditor(UUID playerId) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.openHudEditor() requires HyUI HUD editor"
+        );
+    }
+
+    @Override
+    public void closeHudEditor(UUID playerId) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.closeHudEditor() requires HyUI HUD editor"
+        );
+    }
+
+    @Override
+    public boolean isInHudEditMode(UUID playerId) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.isInHudEditMode() requires HyUI HUD editor state tracking"
         );
     }
 }
