@@ -16,15 +16,10 @@ public class HytaleAdapterPlugin extends JavaPlugin {
 
     public HytaleAdapterPlugin(JavaPluginInit init) {
         super(init);
-    }
-
-    @Override
-    public void onEnable() {
-        getLogger().info("Initializing HytaleAdapterPlugin...");
         
+        // Initialize EARLY in constructor
         try {
-            // Initialize and register AccessorProvider
-            // Attempting to bridge Core Server to API Server
+            // Initialize and register AccessorProvider EARLY
             Object coreServer = HytaleServer.get();
             if (coreServer instanceof Server) {
                 HytaleAdapterProvider provider = new HytaleAdapterProvider((Server) coreServer);
@@ -32,13 +27,9 @@ public class HytaleAdapterPlugin extends JavaPlugin {
                 getLogger().info("HytaleAdapterProvider initialized and registered.");
             } else {
                  getLogger().error("HytaleServer instance does not implement com.hytale.api.Server! Provider registration failed.");
-                 // Fallback or critical failure? 
-                 // Many mods will fail, but we'll let it process to see specific errors if any.
-                 // For now, let's try to proceed hoping there's a mixin or something handling this, 
-                 // or that compiler lets it verify.
-                 // Actually, if we can't register, we should probably throw or log strictly.
+                 throw new IllegalStateException("Cannot register AccessorProvider - server type mismatch");
             }
-
+            
             // Load Platform-Agnostic Mods via ServiceLoader
             ServiceLoader<ArgonathMod> loader = ServiceLoader.load(ArgonathMod.class, getClass().getClassLoader());
             int count = 0;
@@ -53,14 +44,12 @@ public class HytaleAdapterPlugin extends JavaPlugin {
                  }
             }
             getLogger().info("Loaded " + count + " Argonath Mods.");
-             
+
         } catch (Exception e) {
             getLogger().error("Failed to initialize HytaleAdapterPlugin", e);
+            throw new RuntimeException("Critical setup failure", e);
         }
     }
-
-    @Override
-    public void onDisable() {
         getLogger().info("Disabling Argonath Mods...");
         for (ArgonathMod mod : loadedMods) {
             try {

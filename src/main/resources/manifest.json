@@ -1,5 +1,5 @@
 {
-  "Group": "com.argonathsystems.mods",
+  "Group": "ArgonathSystems",
   "Name": "HytaleAdapter",
   "Version": "1.0.0-SNAPSHOT",
   "Description": "A LordOfTheTales adapter",
@@ -11,7 +11,7 @@
   "Website": "",
   "ServerVersion": "*",
   "Dependencies": {
-    "com.argonathsystems.mods:AccessorApi": "1.0.0-SNAPSHOT"
+    "ArgonathSystems:AccessorApi": "*"
   },
   "OptionalDependencies": {},
   "DisabledByDefault": false,

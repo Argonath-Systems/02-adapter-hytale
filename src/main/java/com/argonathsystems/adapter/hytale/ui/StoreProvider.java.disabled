@@ -1,0 +1,25 @@
+package com.argonathsystems.adapter.hytale.ui;
+
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+/**
+ * Provides access to the entity store for HyUI page operations.
+ * 
+ * <p>The Store is required for opening pages via PageBuilder.
+ * This interface abstracts the store retrieval mechanism.
+ * 
+ * @author Argonath Systems
+ * @version 1.0.0-SNAPSHOT
+ * @since 1.0.0
+ */
+@FunctionalInterface
+public interface StoreProvider {
+    
+    /**
+     * Get the entity store.
+     * 
+     * @return The Store instance for entity operations
+     */
+    Store<EntityStore> getStore();
+}

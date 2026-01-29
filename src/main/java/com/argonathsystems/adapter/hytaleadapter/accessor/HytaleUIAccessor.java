@@ -7,9 +7,13 @@ import com.argonathsystems.framework.accessorapi.ui.UIContext;
 import com.argonathsystems.framework.accessorapi.ui.UIUpdateData;
 import com.hytale.api.Server;
 import com.hytale.api.entity.Player;
+import com.hytale.api.entity.PlayerRef;
+import com.hytale.ui.HudBuilder;
+import com.hytale.ui.HyUIHud;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Hytale implementation of UIAccessor.
@@ -18,7 +22,9 @@ import java.util.UUID;
  */
 public class HytaleUIAccessor implements UIAccessor {
     private final Server server;
-    private final Map<String, String> registeredUIs = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, String> registeredUIs = new ConcurrentHashMap<>();
+    /** Active HUD instances per player, keyed by (playerId + "-" + hudId) */
+    private final Map<String, HyUIHud> activeHuds = new ConcurrentHashMap<>();
     
     public HytaleUIAccessor(Server server) { 
         this.server = server; 
@@ -92,79 +98,83 @@ public class HytaleUIAccessor implements UIAccessor {
     
     @Override
     public void addHud(UUID playerId, String hudId, String content) {
-        Player player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            // TODO: Implement using actual Hytale HUD API when available
-            // For now, use generic UI system as fallback
-            player.openUI(hudId, content);
+        PlayerRef playerRef = PlayerRefCache.getRef(playerId);
+        if (playerRef != null) {
+            // Build and display HUD using HyUI HudBuilder API
+            HyUIHud hud = HudBuilder.hudForPlayer(playerRef)
+                .fromHtml(content)
+                .withRefreshRate(100)
+                .show();
+            
+            // Track active HUD for later update/removal
+            activeHuds.put(playerId + "-" + hudId, hud);
         }
     }
     
     @Override
     public void removeHud(UUID playerId, String hudId) {
-        Player player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            // TODO: Implement using actual Hytale HUD API when available
-            player.closeUI();
+        String hudKey = playerId + "-" + hudId;
+        HyUIHud hud = activeHuds.remove(hudKey);
+        if (hud != null) {
+            hud.hide();
         }
     }
     
     @Override
     public void updateHud(UUID playerId, String hudId, String content) {
-        Player player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            // TODO: Implement using actual Hytale HUD API when available
-            player.sendUIUpdate(hudId, content);
+        String hudKey = playerId + "-" + hudId;
+        HyUIHud existingHud = activeHuds.get(hudKey);
+        if (existingHud != null) {
+            // Update existing HUD content
+            existingHud.updateContent(content);
+        } else {
+            // HUD doesn't exist, create it
+            addHud(playerId, hudId, content);
         }
     }
     
     @Override
     public void updateHudLayout(UUID playerId, HudLayoutData layoutData) {
-        Player player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            // Convert HudLayoutData to Map<String, Object> for platform
-            Map<String, Object> platformData = new java.util.HashMap<>();
-            layoutData.elements().forEach((id, pos) -> {
-                platformData.put(id, Map.of(
-                    "x", pos.x(),
-                    "y", pos.y(),
-                    "width", pos.width(),
-                    "height", pos.height(),
-                    "anchor", pos.anchor(),
-                    "visible", pos.visible()
-                ));
-            });
-            
-            // TODO: Implement HUD layout updates when Hytale API supports it
-            player.sendUIUpdate("hud_layout", platformData);
-        }
+        // Update layout for each tracked HUD element
+        layoutData.elements().forEach((hudId, pos) -> {
+            String hudKey = playerId + "-" + hudId;
+            HyUIHud hud = activeHuds.get(hudKey);
+            if (hud != null) {
+                // Apply position from layout data
+                hud.setPosition(pos.x(), pos.y());
+                hud.setVisible(pos.visible());
+            }
+        });
     }
     
     @Override
     public void openHudEditor(UUID playerId) {
-        Player player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            // TODO: Implement HUD editor when Hytale API supports it
-            player.openUI("hud_editor", null);
+        PlayerRef playerRef = PlayerRefCache.getRef(playerId);
+        if (playerRef != null) {
+            // Open HUD layout editor UI
+            addHud(playerId, "hud_editor", buildHudEditorHtml());
         }
     }
     
     @Override
     public void closeHudEditor(UUID playerId) {
-        Player player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            // TODO: Close HUD editor when implemented
-            player.closeUI();
-        }
+        removeHud(playerId, "hud_editor");
     }
     
     @Override
     public boolean isInHudEditMode(UUID playerId) {
-        Player player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            // TODO: Track HUD edit mode state when implemented
-            return player.hasUIOpen("hud_editor");
-        }
-        return false;
+        return activeHuds.containsKey(playerId + "-" + "hud_editor");
+    }
+    
+    /**
+     * Builds the HUD editor HTML content.
+     */
+    private String buildHudEditorHtml() {
+        return """
+            <div class="hud-editor-overlay">
+                <div class="hud-editor-header">HUD Layout Editor</div>
+                <div class="hud-editor-hint">Drag elements to reposition. Press F7 to save and exit.</div>
+            </div>
+            """;
     }
 }

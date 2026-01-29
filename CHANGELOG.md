@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **HyUI Adapter Layer** - Complete UI integration implementation
+  - `DialoguePageAdapter` - NPC dialogue modal rendering with choice event handling
+  - `QuestBookPageAdapter` - Quest journal with tab-based navigation and category accordion
+  - `ActionBarAdapter` - Hotbar HUD with 4 ability slots and mount control
+  - `CombatFramesAdapter` - Party/raid health/mana frames with dynamic updates
+  - `CompassBarAdapter` - Directional compass with quest tracking and waypoint markers
+  - `VendorPageAdapter` - NPC shop interface with buy/sell tabs and transaction handlers
+  - `TemplateLoader` interface - HYUIML template loading from classpath with ClasspathTemplateLoader implementation
+  - `TestDialogueCommand` example - `/testdialogue` command demonstrating adapter usage
+- **HyUI Library Dependency** - Added au.ellie.hyui:HyUI:0.6.0-SNAPSHOT (provided scope)
+- **TemplateProcessor Integration** - Variable interpolation for all UI templates using HyUI's {{$var}} syntax
+- **PageBuilder Pattern** - Proper HyUI PageBuilder.pageForPlayer().fromHtml().addEventListener().open() usage
+- **HudBuilder Pattern** - HudBuilder.hudForPlayer().fromHtml().open() for persistent on-screen elements
+- **Event Handling** - CustomUIEventBindingType.Activating handlers for all UI interactions
+- **Data Models** - ActionBarData, SlotData, CombatFramesData, MemberFrame, CompassData, TrackedMarker, POIMarker, VendorData, VendorItem records
 
 ### Changed
 

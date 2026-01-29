@@ -1,0 +1,95 @@
+package com.argonathsystems.adapter.hytale.ui.example;
+
+import com.argonathsystems.adapter.hytale.ui.DialoguePageAdapter;
+import com.argonathsystems.adapter.hytale.ui.TemplateLoader;
+import com.argonathsystems.framework.ui.dialogue.DialogueChoice;
+import com.argonathsystems.framework.ui.dialogue.QuestOfferData;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.GameMode;
+import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncCommand;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * Example command demonstrating DialoguePageAdapter usage.
+ * 
+ * <p>Command: /testdialogue
+ * 
+ * @author Argonath Systems
+ * @version 1.0.0-SNAPSHOT
+ */
+public class TestDialogueCommand extends AbstractAsyncCommand {
+    
+    private final DialoguePageAdapter dialogueAdapter;
+    
+    public TestDialogueCommand() {
+        super("testdialogue", "Test the dialogue page adapter");
+        setPermissionGroup(GameMode.Adventure);
+        
+        // Initialize adapter with template loader
+        this.dialogueAdapter = new DialoguePageAdapter(
+            new TemplateLoader.ClasspathTemplateLoader()
+        );
+        
+        // Set choice handler
+        dialogueAdapter.setChoiceHandler(choice -> {
+            // Handle dialogue choice selection
+            System.out.println("Player selected choice: " + choice.getText());
+        });
+    }
+    
+    @NonNullDecl
+    @Override
+    protected CompletableFuture<Void> executeAsync(CommandContext context) {
+        var sender = context.sender();
+        if (!(sender instanceof Player player)) {
+            context.sendMessage(Message.raw("§cThis command can only be used by players"));
+            return CompletableFuture.completedFuture(null);
+        }
+        
+        Ref<EntityStore> ref = player.getReference();
+        if (ref == null || !ref.isValid()) {
+            context.sendMessage(Message.raw("§cPlayer not in world"));
+            return CompletableFuture.completedFuture(null);
+        }
+        
+        Store<EntityStore> store = ref.getStore();
+        World world = store.getExternalData().getWorld();
+        
+        // Run on world thread
+        return CompletableFuture.runAsync(() -> {
+            PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
+            if (playerRef == null) return;
+            
+            // Create sample dialogue data
+            List<DialogueChoice> choices = new ArrayList<>();
+            choices.add(new DialogueChoice(1, "Tell me about the Ring of Power", "quest-ring", true, "Quest"));
+            choices.add(new DialogueChoice(2, "What news from the Shire?", "news-shire", true, "Lore"));
+            choices.add(new DialogueChoice(3, "I need to trade", "trade", true, "Shop"));
+            choices.add(new DialogueChoice(4, "Farewell, old friend", "farewell", true, null));
+            
+            DialoguePageAdapter.DialogueData data = new DialoguePageAdapter.DialogueData(
+                "Gandalf the Grey",
+                "Gandalf",
+                "Ah, young hobbit! A wizard is never late, nor is he early. He arrives precisely when he means to. What brings you to my doorstep on this fine day?",
+                choices,
+                false,
+                null
+            );
+            
+            // Show dialogue using adapter
+            dialogueAdapter.showDialogue(playerRef, store, data);
+            
+        }, world);
+    }
+}
