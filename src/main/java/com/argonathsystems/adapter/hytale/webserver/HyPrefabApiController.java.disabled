@@ -1,11 +1,15 @@
 package com.argonathsystems.adapter.hytale.webserver;
 
+import com.argonathsystems.adapter.hytale.webserver.PrefabService.PrefabData;
+import com.argonathsystems.adapter.hytale.webserver.PrefabService.SpawnRequest;
+import com.argonathsystems.adapter.hytale.webserver.PrefabService.SpawnResult;
 import com.argonathsystems.framework.webserver.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -28,7 +32,7 @@ import java.util.logging.Logger;
  * </pre>
  * 
  * @author Argonath Systems
- * @version 1.0.0
+ * @version 1.1.0
  * @since 1.0.0
  */
 public class HyPrefabApiController {
@@ -37,10 +41,12 @@ public class HyPrefabApiController {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
     private final WebServerAccessor webServer;
-    private final Object prefabService; // PrefabService when available
+    private final PrefabService prefabService;
     
     /**
      * Creates a new HyPrefab API controller.
+     * 
+     * <p>Without a prefab service, all data operations will return 503 Service Unavailable.
      * 
      * @param webServer the web server accessor
      */
@@ -54,7 +60,7 @@ public class HyPrefabApiController {
      * @param webServer the web server accessor
      * @param prefabService the prefab service (can be null)
      */
-    public HyPrefabApiController(WebServerAccessor webServer, Object prefabService) {
+    public HyPrefabApiController(WebServerAccessor webServer, PrefabService prefabService) {
         this.webServer = webServer;
         this.prefabService = prefabService;
     }
@@ -94,9 +100,8 @@ public class HyPrefabApiController {
                 return;
             }
             
-            // Query prefabs from PrefabService (when available)
-            // prefabService.listAll() or similar method
-            List<Map<String, Object>> prefabs = List.of();
+            String searchTerm = req.getQueryParam("search").orElse(null);
+            List<PrefabData> prefabs = prefabService.listAll(searchTerm);
             
             res.writeJson(GSON.toJson(prefabs));
             
@@ -114,7 +119,7 @@ public class HyPrefabApiController {
             }
             
             String prefabId = req.getPathParam("id");
-            if (prefabId == null) {
+            if (prefabId == null || prefabId.isBlank()) {
                 res.writeError(400, "Missing prefab ID");
                 return;
             }
@@ -124,9 +129,12 @@ public class HyPrefabApiController {
                 return;
             }
             
-            // Get prefab from PrefabService (when available)
-            // Object prefab = prefabService.getById(prefabId);
-            res.writeError(404, "Prefab not found");
+            Optional<PrefabData> prefab = prefabService.getById(prefabId);
+            if (prefab.isPresent()) {
+                res.writeJson(GSON.toJson(prefab.get()));
+            } else {
+                res.writeError(404, "Prefab not found: " + prefabId);
+            }
             
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error getting prefab", e);
@@ -146,14 +154,19 @@ public class HyPrefabApiController {
                 return;
             }
             
-            Map<String, Object> newPrefab = GSON.fromJson(req.getBody(), Map.class);
+            PrefabData newPrefab = parseBody(req, PrefabData.class);
+            if (newPrefab == null) {
+                res.writeError(400, "Invalid request body");
+                return;
+            }
             
-            // Create prefab in PrefabService (when available)
-            // Object created = prefabService.create(newPrefab);
+            PrefabData created = prefabService.create(newPrefab);
             
             res.setStatus(201); // Created
-            res.writeJson(GSON.toJson(newPrefab));
+            res.writeJson(GSON.toJson(created));
             
+        } catch (JsonSyntaxException e) {
+            res.writeError(400, "Invalid JSON: " + e.getMessage());
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error creating prefab", e);
             res.writeError(500, "Internal server error");
@@ -168,7 +181,7 @@ public class HyPrefabApiController {
             }
             
             String prefabId = req.getPathParam("id");
-            if (prefabId == null) {
+            if (prefabId == null || prefabId.isBlank()) {
                 res.writeError(400, "Missing prefab ID");
                 return;
             }
@@ -178,13 +191,21 @@ public class HyPrefabApiController {
                 return;
             }
             
-            Map<String, Object> updatedPrefab = GSON.fromJson(req.getBody(), Map.class);
+            PrefabData updatedPrefab = parseBody(req, PrefabData.class);
+            if (updatedPrefab == null) {
+                res.writeError(400, "Invalid request body");
+                return;
+            }
             
-            // Update prefab in PrefabService (when available)
-            // Object updated = prefabService.update(prefabId, updatedPrefab);
+            Optional<PrefabData> result = prefabService.update(prefabId, updatedPrefab);
+            if (result.isPresent()) {
+                res.writeJson(GSON.toJson(result.get()));
+            } else {
+                res.writeError(404, "Prefab not found: " + prefabId);
+            }
             
-            res.writeJson(GSON.toJson(updatedPrefab));
-            
+        } catch (JsonSyntaxException e) {
+            res.writeError(400, "Invalid JSON: " + e.getMessage());
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error updating prefab", e);
             res.writeError(500, "Internal server error");
@@ -199,7 +220,7 @@ public class HyPrefabApiController {
             }
             
             String prefabId = req.getPathParam("id");
-            if (prefabId == null) {
+            if (prefabId == null || prefabId.isBlank()) {
                 res.writeError(400, "Missing prefab ID");
                 return;
             }
@@ -209,10 +230,12 @@ public class HyPrefabApiController {
                 return;
             }
             
-            // Delete prefab from PrefabService (when available)
-            // prefabService.delete(prefabId);
-            
-            res.setStatus(204); // No Content
+            boolean deleted = prefabService.delete(prefabId);
+            if (deleted) {
+                res.setStatus(204); // No Content
+            } else {
+                res.writeError(404, "Prefab not found: " + prefabId);
+            }
             
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error deleting prefab", e);
@@ -228,7 +251,7 @@ public class HyPrefabApiController {
             }
             
             String prefabId = req.getPathParam("id");
-            if (prefabId == null) {
+            if (prefabId == null || prefabId.isBlank()) {
                 res.writeError(400, "Missing prefab ID");
                 return;
             }
@@ -238,19 +261,41 @@ public class HyPrefabApiController {
                 return;
             }
             
-            Map<String, Object> spawnRequest = GSON.fromJson(req.getBody(), Map.class);
+            SpawnRequest spawnRequest = parseBody(req, SpawnRequest.class);
+            if (spawnRequest == null) {
+                res.writeError(400, "Invalid spawn request");
+                return;
+            }
             
-            // Spawn prefab using PrefabSpawner (when available)
-            // Extract location from request
-            // Object location = spawnRequest.get("location");
-            // prefabSpawner.spawn(prefabId, location);
+            SpawnResult result = prefabService.spawn(prefabId, spawnRequest);
             
-            res.writeJson("{\"status\":\"spawned\",\"prefabId\":\"" + prefabId + "\"}");
+            if (result.success()) {
+                res.writeJson(GSON.toJson(result));
+            } else {
+                res.writeError(400, result.message());
+            }
             
+        } catch (JsonSyntaxException e) {
+            res.writeError(400, "Invalid JSON: " + e.getMessage());
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error spawning prefab", e);
             res.writeError(500, "Internal server error");
         }
+    }
+    
+    /**
+     * Parses the request body as the specified type.
+     * 
+     * @param req the HTTP request
+     * @param type the type to parse as
+     * @return the parsed object, or null if body is empty
+     */
+    private <T> T parseBody(HttpRequest req, Class<T> type) {
+        String body = req.getBody();
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        return GSON.fromJson(body, type);
     }
     
     /**
