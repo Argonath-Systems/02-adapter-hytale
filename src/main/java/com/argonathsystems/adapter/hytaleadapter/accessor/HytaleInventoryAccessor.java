@@ -86,18 +86,4 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
             "HytaleInventoryAccessor.clearInventory() requires official Hytale SDK Inventory system"
         );
     }
-
-    @Override
-    public int getInventorySize(UUID playerId) {
-        throw new UnsupportedOperationException(
-            "HytaleInventoryAccessor.getInventorySize() requires official Hytale SDK Inventory system"
-        );
-    }
-
-    @Override
-    public int getFirstEmptySlot(UUID playerId) {
-        throw new UnsupportedOperationException(
-            "HytaleInventoryAccessor.getFirstEmptySlot() requires official Hytale SDK Inventory system"
-        );
-    }
 }

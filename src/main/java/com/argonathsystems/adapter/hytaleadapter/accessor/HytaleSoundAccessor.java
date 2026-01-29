@@ -1,7 +1,5 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
-import com.argonathsystems.adapter.hytaleadapter.converter.LocationConverter;
-import com.argonathsystems.adapter.hytaleadapter.util.PlayerRefCache;
 import com.argonathsystems.framework.accessorapi.SoundAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 
@@ -20,29 +18,32 @@ import java.util.UUID;
  */
 public class HytaleSoundAccessor implements SoundAccessor {
     private final Object /* Server */ server;
-    public HytaleSoundAccessor(Object /* Server */ server) { this.server = server; }
+    
+    public HytaleSoundAccessor(Object /* Server */ server) { 
+        this.server = server; 
+    }
     
     @Override 
     public void playSound(String soundId, LocationData location, float volume, float pitch) {
-        World world = server.getWorld(location.world());
-        if (world != null) {
-            world.playSound(LocationConverter.fromDTO(location), soundId, volume, pitch);
-        }
+        throw new UnsupportedOperationException(
+            "HytaleSoundAccessor.playSound() requires official Hytale SDK: " +
+            "HytaleServer.get().getWorld(worldName).playSound(location, soundId, volume, pitch)"
+        );
     }
 
     @Override 
     public void playSoundTo(UUID playerId, String soundId, float volume, float pitch) {
-        Object /* Player */ player = PlayerRefCache.get(playerId); // Or use better lookup
-        if (player != null) {
-             player.playSound(soundId, volume, pitch);
-        }
+        throw new UnsupportedOperationException(
+            "HytaleSoundAccessor.playSoundTo() requires official Hytale SDK: " +
+            "HytaleServer.get().getPlayer(playerId).playSound(soundId, volume, pitch)"
+        );
     }
 
     @Override 
     public void stopSound(UUID playerId, String soundId) {
-        Object /* Player */ player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            player.stopSound(soundId);
-        }
+        throw new UnsupportedOperationException(
+            "HytaleSoundAccessor.stopSound() requires official Hytale SDK: " +
+            "HytaleServer.get().getPlayer(playerId).stopSound(soundId)"
+        );
     }
 }

@@ -1,6 +1,5 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
-import com.argonathsystems.adapter.hytaleadapter.util.PlayerRefCache;
 import com.argonathsystems.framework.accessorapi.NotificationAccessor;
 
 import java.util.UUID;
@@ -18,18 +17,24 @@ import java.util.UUID;
  */
 public class HytaleNotificationAccessor implements NotificationAccessor {
     private final Object /* Server */ server;
-    public HytaleNotificationAccessor(Object /* Server */ server) { this.server = server; }
+    
+    public HytaleNotificationAccessor(Object /* Server */ server) { 
+        this.server = server; 
+    }
     
     @Override 
-    public void sendNotification(UUID playerId, String title, String message, String icon) {
-        Object /* Player */ player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            player.sendNotification(title, message, icon);
-        }
+    public void sendNotification(UUID playerId, String title, String message, String type) {
+        throw new UnsupportedOperationException(
+            "NotificationAccessor.sendNotification(UUID, String, String, String) requires Hytale SDK: " +
+            "HytaleServer.get().getPlayer(playerId).sendNotification(title, message, type)"
+        );
     }
 
     @Override
     public void sendNotification(UUID playerId, String title, String message) {
-        sendNotification(playerId, title, message, null); // Default or null icon
+        throw new UnsupportedOperationException(
+            "NotificationAccessor.sendNotification(UUID, String, String) requires Hytale SDK: " +
+            "HytaleServer.get().getPlayer(playerId).sendNotification(title, message)"
+        );
     }
 }

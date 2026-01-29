@@ -1,6 +1,5 @@
 package com.argonathsystems.adapter.hytaleadapter.util;
 
-import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,10 +24,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * @since MIGRATION-001
  */
 public class PlayerRefCache {
-    private final JavaPlugin plugin;
+    private final Object /* JavaPlugin */ plugin;
     private final Map<UUID, Object> refCache = new ConcurrentHashMap<>();
 
-    public PlayerRefCache(JavaPlugin plugin) {
+    public PlayerRefCache(Object /* JavaPlugin */ plugin) {
         this.plugin = plugin;
     }
     

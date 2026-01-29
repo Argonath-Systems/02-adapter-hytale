@@ -20,14 +20,9 @@ public class HytaleAdapterPlugin extends JavaPlugin {
         try {
             // Initialize and register AccessorProvider EARLY
             Object coreServer = HytaleServer.get();
-            if (coreServer instanceof Server) {
-                HytaleAdapterProvider provider = new HytaleAdapterProvider((Server) coreServer);
-                AccessorRegistry.registerProvider(provider);
-                getLogger().info("HytaleAdapterProvider initialized and registered.");
-            } else {
-                 getLogger().error("HytaleServer instance does not implement com.hytale.api.Server! Provider registration failed.");
-                 throw new IllegalStateException("Cannot register AccessorProvider - server type mismatch");
-            }
+            HytaleAdapterProvider provider = new HytaleAdapterProvider(coreServer);
+            AccessorRegistry.registerProvider(provider);
+            getLogger().info("HytaleAdapterProvider initialized and registered.");
             
             // Load Platform-Agnostic Mods via ServiceLoader
             ServiceLoader<ArgonathMod> loader = ServiceLoader.load(ArgonathMod.class, getClass().getClassLoader());

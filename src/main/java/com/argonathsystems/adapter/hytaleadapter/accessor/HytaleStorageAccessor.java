@@ -40,8 +40,4 @@ public class HytaleStorageAccessor implements StorageAccessor {
     public Set<String> getKeys(String namespace) {
         throw new UnsupportedOperationException("Requires official Hytale SDK storage");
     }
-    @Override
-    public void flush() {
-        throw new UnsupportedOperationException("Requires official Hytale SDK storage");
-    }
 }

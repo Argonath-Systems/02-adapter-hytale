@@ -57,16 +57,9 @@ public class HytaleWorldAccessor implements WorldAccessor {
     }
 
     @Override
-    public boolean isNighttime() {
+    public boolean hasWeather() {
         throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.isNighttime() requires official Hytale SDK World time system"
-        );
-    }
-
-    @Override
-    public void setWorldTime(long ticks) {
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.setWorldTime() requires official Hytale SDK World.setTime() method"
+            "HytaleWorldAccessor.hasWeather() requires official Hytale SDK Weather system"
         );
     }
 
@@ -74,69 +67,6 @@ public class HytaleWorldAccessor implements WorldAccessor {
     public String getBlockType(LocationData location) {
         throw new UnsupportedOperationException(
             "HytaleWorldAccessor.getBlockType() requires official Hytale SDK Block/World classes"
-        );
-    }
-
-    @Override
-    public void setBlock(LocationData location, String blockType) {
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.setBlock() requires official Hytale SDK Block/World classes"
-        );
-    }
-
-    @Override
-    public void setBlock(LocationData location, String blockType, Object blockData) {
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.setBlock(with data) requires official Hytale SDK Block/World classes"
-        );
-    }
-
-    @Override
-    public int getLightLevel(LocationData location) {
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.getLightLevel() requires official Hytale SDK World light system"
-        );
-    }
-
-    @Override
-    public int getSkyLightLevel(LocationData location) {
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.getSkyLightLevel() requires official Hytale SDK World light system"
-        );
-    }
-
-    @Override
-    public int getBlockLightLevel(LocationData location) {
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.getBlockLightLevel() requires official Hytale SDK World light system"
-        );
-    }
-
-    @Override
-    public boolean isChunkLoaded(int chunkX, int chunkZ) {
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.isChunkLoaded() requires official Hytale SDK ChunkManager"
-        );
-    }
-
-    @Override
-    public void loadChunk(int chunkX, int chunkZ) {
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.loadChunk() requires official Hytale SDK ChunkManager"
-        );
-    }
-
-    @Override
-    public boolean unloadChunk(int chunkX, int chunkZ) {
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.unloadChunk() requires official Hytale SDK ChunkManager"
-        );
-    }
-
-    @Override
-    public boolean hasWeather() {
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.hasWeather() requires official Hytale SDK Weather system"
         );
     }
 
@@ -151,6 +81,13 @@ public class HytaleWorldAccessor implements WorldAccessor {
     public java.util.concurrent.CompletableFuture<Boolean> generateChunk(int x, int z) {
         throw new UnsupportedOperationException(
             "HytaleWorldAccessor.generateChunk() requires official Hytale SDK ChunkManager"
+        );
+    }
+
+    @Override
+    public boolean unloadChunk(int x, int z) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.unloadChunk() requires official Hytale SDK ChunkManager"
         );
     }
 

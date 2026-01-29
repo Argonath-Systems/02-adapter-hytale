@@ -1,6 +1,5 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
-import com.argonathsystems.adapter.hytaleadapter.converter.LocationConverter;
 import com.argonathsystems.framework.accessorapi.HologramAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 
@@ -19,64 +18,40 @@ import java.util.UUID;
  */
 public class HytaleHologramAccessor implements HologramAccessor {
     private final Object /* Server */ server;
-    public HytaleHologramAccessor(Object /* Server */ server) { this.server = server; }
+    
+    public HytaleHologramAccessor(Object /* Server */ server) { 
+        this.server = server; 
+    }
     
     @Override 
     public UUID createHologram(LocationData location, String... lines) {
-        World world = server.getWorld(location.world());
-        if (world != null) {
-            Hologram hologram = world.spawnHologram(LocationConverter.fromDTO(location), lines);
-            if (hologram != null) {
-                return hologram.getUniqueId();
-            }
-        }
-        return null;
+        throw new UnsupportedOperationException(
+            "HytaleHologramAccessor.createHologram() requires official Hytale SDK: " +
+            "HytaleServer.get().getWorld(worldName).spawnHologram(location, lines)"
+        );
     }
 
     @Override 
     public void updateHologram(UUID hologramId, String... lines) {
-        // Since we don't know the world, we might have to search worlds or rely on global lookup if supported.
-        // Assuming Object /* Server */ has global entity lookup or we iterate worlds. 
-        // For simplicity/stub, let's assume we can find it via first world or we need to look it up.
-        // The SDK stub for Object /* Server */ doesn't have searching all worlds yet.
-        // BUT, usually accessor implementations are better if they know the context.
-        // Let's assume server.getWorlds() exists or we just fail gracefully.
-        
-        // BETTER: Implementation should probably store world in a map if server doesn't support global lookup.
-        // Or iterate.
-        // Let's iterate if server allows.
-        
-        Object /* Entity */ entity = findEntity(hologramId);
-        if (entity instanceof Hologram) {
-            ((Hologram) entity).setLines(lines);
-        }
+        throw new UnsupportedOperationException(
+            "HytaleHologramAccessor.updateHologram() requires official Hytale SDK: " +
+            "Hologram entity lookup and setLines()"
+        );
     }
 
     @Override 
     public void moveHologram(UUID hologramId, LocationData newLocation) {
-        Object /* Entity */ entity = findEntity(hologramId);
-        if (entity != null) {
-             entity.teleport(LocationConverter.fromDTO(newLocation));
-        }
+        throw new UnsupportedOperationException(
+            "HytaleHologramAccessor.moveHologram() requires official Hytale SDK: " +
+            "Entity.teleport(location)"
+        );
     }
 
     @Override 
     public void removeHologram(UUID hologramId) {
-        Object /* Entity */ entity = findEntity(hologramId);
-        if (entity != null) {
-            entity.remove();
-        }
-    }
-    
-    private Object /* Entity */ findEntity(UUID uuid) {
-        // Naive iteration if server supports getting worlds, otherwise we are stuck.
-        // The SDK Object /* Server */ interface:
-        // collection<World> getWorlds();
-        // Let's check if Object /* Server */ has getWorlds()
-        for (World world : server.getWorlds()) {
-            Object /* Entity */ e = world.getEntity(uuid);
-            if (e != null) return e;
-        }
-        return null;
+        throw new UnsupportedOperationException(
+            "HytaleHologramAccessor.removeHologram() requires official Hytale SDK: " +
+            "Entity.remove()"
+        );
     }
 }

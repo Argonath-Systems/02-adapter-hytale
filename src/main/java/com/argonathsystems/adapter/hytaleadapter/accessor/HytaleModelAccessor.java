@@ -55,11 +55,10 @@ public class HytaleModelAccessor implements ModelAccessor {
     
     @Override
     public void removeModel(UUID modelId) {
-        Object /* Entity */ entity = getEntity(modelId);
-        if (entity != null) {
-            entity.remove();
-            entityCache.remove(modelId);
-        }
+        throw new UnsupportedOperationException(
+            "HytaleModelAccessor.removeModel() requires official Hytale SDK: " +
+            "Entity.remove()"
+        );
     }
     
     @Override
@@ -167,37 +166,4 @@ public class HytaleModelAccessor implements ModelAccessor {
         );
     }
     
-    private Object /* Entity */ getEntity(UUID entityId) {
-        // Check cache first
-        Object /* Entity */ cached = entityCache.get(entityId);
-        if (cached != null) {
-            return cached;
-        }
-        
-        // Search all worlds for the entity
-        for (World world : server.getWorlds()) {
-            Object /* Entity */ entity = world.getEntity(entityId);
-            if (entity != null) {
-                entityCache.put(entityId, entity);
-                return entity;
-            }
-        }
-        
-        return null;
-    }
-    
-    /**
-     * Clears stale entity references from cache.
-     */
-    public void clearCache() {
-        entityCache.entrySet().removeIf(entry -> {
-            try {
-                Object /* Entity */ entity = entry.getValue();
-                entity.getUniqueId(); // Check if entity is still valid
-                return false;
-            } catch (Exception e) {
-                return true; // Remove invalid entities
-            }
-        });
-    }
 }

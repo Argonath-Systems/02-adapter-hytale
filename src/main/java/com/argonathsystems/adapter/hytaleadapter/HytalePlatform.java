@@ -1,7 +1,5 @@
 package com.argonathsystems.adapter.hytaleadapter;
 
-import com.argonathsystems.platform.sdk.ArgonathPlugin;
-
 /**
  * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
  */

@@ -7,7 +7,6 @@ import com.argonathsystems.framework.accessorapi.PlayerAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 import com.argonathsystems.framework.accessorapi.dto.PlayerData;
 import com.argonathsystems.framework.accessorapi.platform.PlatformEntity;
-import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,10 +34,10 @@ import java.util.UUID;
  * @since MIGRATION-001
  */
 public class HytalePlayerAccessor implements PlayerAccessor {
-    private final JavaPlugin plugin;
+    private final Object /* JavaPlugin */ plugin;
     private final PlayerRefCache playerCache;
 
-    public HytalePlayerAccessor(JavaPlugin plugin) {
+    public HytalePlayerAccessor(Object /* JavaPlugin */ plugin) {
         this.plugin = plugin;
         this.playerCache = new PlayerRefCache(plugin);
     }
