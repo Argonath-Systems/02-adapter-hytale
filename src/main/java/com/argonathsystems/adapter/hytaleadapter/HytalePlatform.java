@@ -1,33 +1,24 @@
 package com.argonathsystems.adapter.hytaleadapter;
 
-import com.argonathsystems.adapter.hytaleadapter.listener.HytaleAdapterEventListener;
-import com.argonathsystems.adapter.hytaleadapter.accessor.HytaleEventAccessor;
-import com.argonathsystems.framework.accessorapi.AccessorRegistry;
+import com.argonathsystems.platform.sdk.ArgonathPlugin;
 
-public class HytalePlatform implements Plugin {
-    private Server server;
-    private HytaleAdapterProvider provider;
-    private HytaleAdapterEventListener eventListener;
-
-    @Override
-    public void onEnable(Server server) {
-        this.server = server;
-        this.provider = new HytaleAdapterProvider(server);
-        
-        // Register Provider
-        AccessorRegistry.registerProvider(provider);
-        
-        // Register Events
-        this.eventListener = new HytaleAdapterEventListener((HytaleEventAccessor) provider.getEventAccessor());
-        server.getEventBus().register(eventListener);
-        
-        server.getLogger().info("Hytale Adapter (LordOfTheTales) Enabled");
+/**
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ */
+public class HytalePlatform {
+    private final Object plugin;
+    private final HytaleAdapterProvider adapters;
+    
+    public HytalePlatform(Object plugin, Object server) {
+        this.plugin = plugin;
+        this.adapters = new HytaleAdapterProvider(server);
     }
-
-    @Override
-    public void onDisable() {
-        if (server != null) {
-            server.getLogger().info("Hytale Adapter Disabled");
-        }
+    
+    public HytaleAdapterProvider getAdapters() {
+        return adapters;
+    }
+    
+    public Object getPlugin() {
+        return plugin;
     }
 }

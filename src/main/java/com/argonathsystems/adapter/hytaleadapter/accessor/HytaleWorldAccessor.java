@@ -1,323 +1,135 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
-import com.argonathsystems.adapter.hytaleadapter.converter.LocationConverter;
 import com.argonathsystems.framework.accessorapi.WorldAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 
 import java.util.Optional;
 
 /**
- * Hytale implementation of WorldAccessor.
- * 
- * <p>Provides access to Hytale's world state including biomes, zones,
- * time, weather, and block information. Uses thread-safe access patterns
- * as Hytale world data may require main thread access.
- * 
- * @author Argonath Systems Team
- * @version 1.0.0
- */
-/**
  * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
  * 
- * <p>This accessor implements World manipulation functionality.</p>
+ * <p>This accessor implements World operations.</p>
  * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
  * which is not available in the development environment.</p>
  * 
  * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
- * 
- * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Status</a>
  */
 public class HytaleWorldAccessor implements WorldAccessor {
-    
-    private final Object /* Server */ server;
-    
-    /** Ticks representing daytime range (0-12000 = day, 12000-24000 = night) */
-    private static final long DAY_START = 0;
-    private static final long DAY_END = 12000;
-    
-    /** Default search parameters for safe location */
-    private static final int DEFAULT_VERTICAL_SEARCH = 10;
+    private final Object server;
 
-    public HytaleWorldAccessor(Object /* Server */ server) {
+    public HytaleWorldAccessor(Object server) {
         this.server = server;
     }
 
     @Override
     public String getWorldName() {
-        World world = server.getDefaultWorld();
-        return world != null ? world.getName() : "unknown";
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.getWorldName() requires official Hytale SDK World class"
+        );
     }
 
     @Override
     public String getBiome(LocationData location) {
-        World world = getWorld(location.world());
-        if (world == null) {
-            return "unknown";
-        }
-        
-        Biome biome = world.getBiomeAt(
-            (int) location.x(),
-            (int) location.y(),
-            (int) location.z()
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.getBiome() requires official Hytale SDK Biome/World classes"
         );
-        
-        return biome != null ? biome.getId() : "unknown";
     }
 
     @Override
     public Optional<String> getZone(LocationData location) {
-        World world = getWorld(location.world());
-        if (world == null) {
-            return Optional.empty();
-        }
-        
-        Zone zone = world.getZoneAt(
-            (int) location.x(),
-            (int) location.y(),
-            (int) location.z()
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.getZone() requires official Hytale SDK Zone/Region classes"
         );
-        
-        return zone != null ? Optional.of(zone.getId()) : Optional.empty();
     }
 
     @Override
     public long getWorldTime() {
-        World world = server.getDefaultWorld();
-        return world != null ? world.getTime() : 0;
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.getWorldTime() requires official Hytale SDK World.getTime() method"
+        );
     }
 
     @Override
     public boolean isDaytime() {
-        long time = getWorldTime() % 24000; // Normalize to day cycle
-        return time >= DAY_START && time < DAY_END;
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.isDaytime() requires official Hytale SDK World time system"
+        );
     }
 
     @Override
-    public boolean hasWeather() {
-        World world = server.getDefaultWorld();
-        if (world == null) {
-            return false;
-        }
-        
-        // Check for rain, storm, or other weather conditions
-        return world.isRaining() || world.isThundering();
+    public boolean isNighttime() {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.isNighttime() requires official Hytale SDK World time system"
+        );
+    }
+
+    @Override
+    public void setWorldTime(long ticks) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.setWorldTime() requires official Hytale SDK World.setTime() method"
+        );
     }
 
     @Override
     public String getBlockType(LocationData location) {
-        World world = getWorld(location.world());
-        if (world == null) {
-            return "air";
-        }
-        
-        Block block = world.getBlockAt(
-            (int) location.x(),
-            (int) location.y(),
-            (int) location.z()
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.getBlockType() requires official Hytale SDK Block/World classes"
         );
-        
-        return block != null ? block.getType().getId() : "air";
     }
 
     @Override
-    public boolean isSafeLocation(LocationData location) {
-        World world = getWorld(location.world());
-        if (world == null) {
-            return false;
-        }
-        
-        int x = (int) location.x();
-        int y = (int) location.y();
-        int z = (int) location.z();
-        
-        // Check block at feet and head are passable
-        Block feetBlock = world.getBlockAt(x, y, z);
-        Block headBlock = world.getBlockAt(x, y + 1, z);
-        Block groundBlock = world.getBlockAt(x, y - 1, z);
-        
-        if (feetBlock == null || headBlock == null || groundBlock == null) {
-            return false;
-        }
-        
-        boolean feetClear = feetBlock.getType().isPassable();
-        boolean headClear = headBlock.getType().isPassable();
-        boolean groundSolid = groundBlock.getType().isSolid();
-        
-        // Also check for hazards (lava, fire, etc.)
-        boolean noHazard = !isHazardBlock(feetBlock) && !isHazardBlock(groundBlock);
-        
-        return feetClear && headClear && groundSolid && noHazard;
+    public void setBlock(LocationData location, String blockType) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.setBlock() requires official Hytale SDK Block/World classes"
+        );
     }
 
     @Override
-    public Optional<LocationData> findSafeLocation(LocationData near, int radius) {
-        World world = getWorld(near.world());
-        if (world == null) {
-            return Optional.empty();
-        }
-        
-        int centerX = (int) near.x();
-        int centerY = (int) near.y();
-        int centerZ = (int) near.z();
-        
-        // Search in expanding circles
-        for (int r = 0; r <= radius; r++) {
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    // Only check edge of current radius ring
-                    if (Math.abs(dx) != r && Math.abs(dz) != r) {
-                        continue;
-                    }
-                    
-                    int x = centerX + dx;
-                    int z = centerZ + dz;
-                    
-                    // Search vertically around the center Y
-                    Optional<LocationData> safe = searchVertically(world, x, centerY, z, near.world());
-                    if (safe.isPresent()) {
-                        return safe;
-                    }
-                }
-            }
-        }
-        
-        return Optional.empty();
-    }
-
-    // ========================
-    // Helper Methods
-    // ========================
-
-    /**
-     * Gets a world by name.
-     */
-    private World getWorld(String worldName) {
-        if (worldName == null || worldName.isEmpty()) {
-            return server.getDefaultWorld();
-        }
-        return server.getWorld(worldName);
-    }
-
-    /**
-     * Searches vertically for a safe location at the given x,z coordinates.
-     */
-    private Optional<LocationData> searchVertically(World world, int x, int centerY, int z, String worldName) {
-        // Search up first, then down
-        for (int dy = 0; dy <= DEFAULT_VERTICAL_SEARCH; dy++) {
-            // Check up
-            LocationData upLocation = new LocationData(worldName, x, centerY + dy, z);
-            if (isSafeLocation(upLocation)) {
-                return Optional.of(upLocation);
-            }
-            
-            // Check down
-            if (dy > 0) {
-                LocationData downLocation = new LocationData(worldName, x, centerY - dy, z);
-                if (isSafeLocation(downLocation)) {
-                    return Optional.of(downLocation);
-                }
-            }
-        }
-        
-        return Optional.empty();
-    }
-
-    /**
-     * Checks if a block is a hazard (lava, fire, cactus, etc.).
-     */
-    private boolean isHazardBlock(Block block) {
-        if (block == null) {
-            return false;
-        }
-        
-        String typeId = block.getType().getId().toLowerCase();
-        return typeId.contains("lava") 
-            || typeId.contains("fire") 
-            || typeId.contains("cactus")
-            || typeId.contains("magma")
-            || typeId.contains("wither_rose");
-    }
-
-    // ========================
-    // Extended Methods
-    // ========================
-
-    /**
-     * Gets the current weather type.
-     * 
-     * @return Weather type identifier
-     */
-    public String getWeatherType() {
-        World world = server.getDefaultWorld();
-        if (world == null) {
-            return "clear";
-        }
-        
-        if (world.isThundering()) {
-            return "thunder";
-        } else if (world.isRaining()) {
-            return "rain";
-        } else {
-            return "clear";
-        }
-    }
-
-    /**
-     * Gets the world spawn location.
-     * 
-     * @param worldName World to get spawn for
-     * @return Spawn location, or empty if world not found
-     */
-    public Optional<LocationData> getSpawnLocation(String worldName) {
-        World world = getWorld(worldName);
-        if (world == null) {
-            return Optional.empty();
-        }
-        
-        Object /* Location */ spawn = world.getSpawnLocation();
-        return Optional.ofNullable(LocationConverter.toDTO(spawn));
-    }
-
-    /**
-     * Gets the world's difficulty level.
-     * 
-     * @return Difficulty identifier
-     */
-    public String getDifficulty() {
-        World world = server.getDefaultWorld();
-        if (world == null) {
-            return "normal";
-        }
-        
-        return world.getDifficulty().name().toLowerCase();
+    public void setBlock(LocationData location, String blockType, Object blockData) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.setBlock(with data) requires official Hytale SDK Block/World classes"
+        );
     }
 
     @Override
-    public boolean unloadChunk(int x, int z) {
-        return false;
+    public int getLightLevel(LocationData location) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.getLightLevel() requires official Hytale SDK World light system"
+        );
     }
 
     @Override
-    public java.util.concurrent.CompletableFuture<Boolean> generateChunk(int x, int z) {
-        return java.util.concurrent.CompletableFuture.completedFuture(false);
+    public int getSkyLightLevel(LocationData location) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.getSkyLightLevel() requires official Hytale SDK World light system"
+        );
     }
 
     @Override
-    public void setBlock(Object worldObj, int x, int y, int z, String blockId) {
-        World world;
-        if (worldObj instanceof World) {
-            world = (World) worldObj;
-        } else if (worldObj instanceof String) {
-            world = getWorld((String) worldObj);
-        } else {
-            world = server.getDefaultWorld();
-        }
+    public int getBlockLightLevel(LocationData location) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.getBlockLightLevel() requires official Hytale SDK World light system"
+        );
+    }
 
-        if (world != null) {
-            com.hytale.api.block.BlockType type = com.hytale.api.block.BlockType.get(blockId);
-            if (type != null) {
-                world.setBlock(x, y, z, type);
-            }
-        }
+    @Override
+    public boolean isChunkLoaded(int chunkX, int chunkZ) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.isChunkLoaded() requires official Hytale SDK ChunkManager"
+        );
+    }
+
+    @Override
+    public void loadChunk(int chunkX, int chunkZ) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.loadChunk() requires official Hytale SDK ChunkManager"
+        );
+    }
+
+    @Override
+    public void unloadChunk(int chunkX, int chunkZ) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldAccessor.unloadChunk() requires official Hytale SDK ChunkManager"
+        );
     }
 }

@@ -1,4 +1,11 @@
-package com.argonathsystems.adapter.hytaleadapter.accessor;
+#!/usr/bin/env python3
+"""Fix HytaleNPCEntityAccessor with correct interface methods."""
+from pathlib import Path
+
+BASE_DIR = Path("/mnt/d/Gaming/Argonath-Systems/02-adapter-hytale/src/main/java")
+
+npc_accessor = BASE_DIR / "com/argonathsystems/adapter/hytaleadapter/accessor/HytaleNPCEntityAccessor.java"
+npc_accessor.write_text("""package com.argonathsystems.adapter.hytaleadapter.accessor;
 
 import com.argonathsystems.framework.accessorapi.EntityAccessor;
 import com.argonathsystems.framework.accessorapi.data.DataValue;
@@ -102,3 +109,6 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
         );
     }
 }
+""")
+
+print("✓ Fixed: HytaleNPCEntityAccessor.java (complete rewrite with correct interface)")

@@ -1,39 +1,24 @@
 package com.argonathsystems.adapter.hytaleadapter.thread;
 
-import com.argonathsystems.framework.accessorapi.thread.WorldExecutor;
-
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-
-public class HytaleWorldExecutor implements WorldExecutor {
-    private final Server server;
-
-    public HytaleWorldExecutor(Server server) {
-        this.server = server;
+/**
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ */
+public class HytaleWorldExecutor {
+    private final Object world;
+    
+    public HytaleWorldExecutor(Object world) {
+        this.world = world;
     }
-
-    @Override
-    public <T> CompletableFuture<T> execute(Callable<T> task) {
-        return server.getScheduler().callSync(task);
+    
+    public void execute(Runnable task) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldExecutor.execute() requires official Hytale SDK World thread-safety system"
+        );
     }
-
-    @Override
-    public CompletableFuture<Void> execute(Runnable task) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        server.getScheduler().runTask(() -> {
-            try {
-                task.run();
-                future.complete(null);
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        return future;
-    }
-
-    @Override
-    public boolean isMainThread() {
-        // TODO: Check against Hytale server thread
-        return true; 
+    
+    public void executeLater(Runnable task, long delayTicks) {
+        throw new UnsupportedOperationException(
+            "HytaleWorldExecutor.executeLater() requires official Hytale SDK Scheduler"
+        );
     }
 }

@@ -1,188 +1,81 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
-import com.argonathsystems.adapter.hytaleadapter.util.PlayerRefCache;
 import com.argonathsystems.framework.accessorapi.UIAccessor;
 import com.argonathsystems.framework.accessorapi.ui.HudLayoutData;
 import com.argonathsystems.framework.accessorapi.ui.UIContext;
 import com.argonathsystems.framework.accessorapi.ui.UIUpdateData;
-import com.hytale.ui.Object /* HudBuilder */;
-import com.hytale.ui.Object /* HyUIHud */;
 
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Hytale implementation of UIAccessor.
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK & HyUI</p>
  * 
- * @version 2.0.0 - Updated to use type-safe UI types
- */
-/**
- * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
- * 
- * <p>This accessor implements UI/HUD management functionality.</p>
+ * <p>This accessor implements UI/HUD operations.</p>
  * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
- * which is not available in the development environment.</p>
+ * and HyUI integration which are not available in the development environment.</p>
  * 
- * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
- * 
- * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Status</a>
+ * <p>All methods throw UnsupportedOperationException until dependencies are available.</p>
  */
 public class HytaleUIAccessor implements UIAccessor {
-    private final Object /* Server */ server;
-    private final Map<String, String> registeredUIs = new ConcurrentHashMap<>();
-    /** Active HUD instances per player, keyed by (playerId + "-" + hudId) */
-    private final Map<String, Object /* HyUIHud */> activeHuds = new ConcurrentHashMap<>();
-    
-    public HytaleUIAccessor(Object /* Server */ server) { 
-        this.server = server; 
-    }
-    
-    @Override
-    public void registerUI(String uiId, String uiDef) {
-        registeredUIs.put(uiId, uiDef);
-        // TODO In a real implementation, we would register this with the Hytale server
-        // so it knows about the UI ID and its definition.
-        // server.registerUI(uiId, uiDef);
-    }
-    
-    @Override 
-    public void openUI(UUID playerId, String uiId, UIContext context) {
-        Object /* Player */ player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            // If we have a registered definition and no context, pass the definition
-            // This mimics the behavior in addHud where content is passed as the object
-            if (context == null && registeredUIs.containsKey(uiId)) {
-                player.openUI(uiId, registeredUIs.get(uiId));
-            } else {
-                // Note: Hytale SDK still expects Object, so we pass the UIContext as-is
-                player.openUI(uiId, context);
-            }
-        }
+    private final Object server;
+
+    public HytaleUIAccessor(Object server) {
+        this.server = server;
     }
 
-    @Override 
+    @Override
+    public void registerUI(String uiId, String uiDef) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.registerUI() requires HyUI HyUIML template system"
+        );
+    }
+
+    @Override
+    public void openUI(UUID playerId, String uiId, UIContext context) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.openUI() requires official Hytale SDK Player and HyUI UI system"
+        );
+    }
+
+    @Override
     public void closeUI(UUID playerId) {
-        Object /* Player */ player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            player.closeUI();
-        }
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.closeUI() requires official Hytale SDK Player and HyUI UI system"
+        );
     }
 
     @Override
     public boolean hasUIOpen(UUID playerId, String uiId) {
-        Object /* Player */ player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            return player.hasUIOpen(uiId);
-        }
-        return false;
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.hasUIOpen() requires official Hytale SDK Player and HyUI UI tracking"
+        );
     }
 
     @Override
     public void sendUIUpdate(UUID playerId, String elementId, UIUpdateData data) {
-        Object /* Player */ player = PlayerRefCache.get(playerId);
-        if (player != null) {
-            // Convert UIUpdateData to platform-appropriate format
-            Object platformData = convertUIUpdateData(data);
-            player.sendUIUpdate(elementId, platformData);
-        }
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.sendUIUpdate() requires HyUI element update system"
+        );
     }
-    
-    /**
-     * Convert type-safe UIUpdateData to platform Object format.
-     */
-    private Object convertUIUpdateData(UIUpdateData data) {
-        return switch (data) {
-            case UIUpdateData.Visibility v -> Map.of("visible", v.visible(), "enabled", v.enabled());
-            case UIUpdateData.Text t -> t.value();
-            case UIUpdateData.Value v -> v.value();
-            case UIUpdateData.Progress p -> Map.of("current", p.current(), "max", p.max());
-            case UIUpdateData.ListData l -> l.items();
-            case UIUpdateData.MapData m -> m.data();
-        };
-    }
-    
-    // === HUD-specific method implementations ===
-    
+
     @Override
-    public void addHud(UUID playerId, String hudId, String content) {
-        Object /* PlayerRef */ playerRef = PlayerRefCache.getRef(playerId);
-        if (playerRef != null) {
-            // Build and display HUD using HyUI Object /* HudBuilder */ API
-            Object /* HyUIHud */ hud = Object /* HudBuilder */.hudForPlayer(playerRef)
-                .fromHtml(content)
-                .withRefreshRate(100)
-                .show();
-            
-            // Track active HUD for later update/removal
-            activeHuds.put(playerId + "-" + hudId, hud);
-        }
+    public void addHud(UUID playerId, String hudId, HudLayoutData layout) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.addHud() requires HyUI HUD system"
+        );
     }
-    
+
     @Override
     public void removeHud(UUID playerId, String hudId) {
-        String hudKey = playerId + "-" + hudId;
-        Object /* HyUIHud */ hud = activeHuds.remove(hudKey);
-        if (hud != null) {
-            hud.hide();
-        }
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.removeHud() requires HyUI HUD system"
+        );
     }
-    
+
     @Override
-    public void updateHud(UUID playerId, String hudId, String content) {
-        String hudKey = playerId + "-" + hudId;
-        Object /* HyUIHud */ existingHud = activeHuds.get(hudKey);
-        if (existingHud != null) {
-            // Update existing HUD content
-            existingHud.updateContent(content);
-        } else {
-            // HUD doesn't exist, create it
-            addHud(playerId, hudId, content);
-        }
-    }
-    
-    @Override
-    public void updateHudLayout(UUID playerId, HudLayoutData layoutData) {
-        // Update layout for each tracked HUD element
-        layoutData.elements().forEach((hudId, pos) -> {
-            String hudKey = playerId + "-" + hudId;
-            Object /* HyUIHud */ hud = activeHuds.get(hudKey);
-            if (hud != null) {
-                // Apply position from layout data
-                hud.setPosition(pos.x(), pos.y());
-                hud.setVisible(pos.visible());
-            }
-        });
-    }
-    
-    @Override
-    public void openHudEditor(UUID playerId) {
-        Object /* PlayerRef */ playerRef = PlayerRefCache.getRef(playerId);
-        if (playerRef != null) {
-            // Open HUD layout editor UI
-            addHud(playerId, "hud_editor", buildHudEditorHtml());
-        }
-    }
-    
-    @Override
-    public void closeHudEditor(UUID playerId) {
-        removeHud(playerId, "hud_editor");
-    }
-    
-    @Override
-    public boolean isInHudEditMode(UUID playerId) {
-        return activeHuds.containsKey(playerId + "-" + "hud_editor");
-    }
-    
-    /**
-     * Builds the HUD editor HTML content.
-     */
-    private String buildHudEditorHtml() {
-        return """
-            <div class="hud-editor-overlay">
-                <div class="hud-editor-header">HUD Layout Editor</div>
-                <div class="hud-editor-hint">Drag elements to reposition. Press F7 to save and exit.</div>
-            </div>
-            """;
+    public void updateHud(UUID playerId, String hudId, String elementId, UIUpdateData data) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.updateHud() requires HyUI HUD update system"
+        );
     }
 }
