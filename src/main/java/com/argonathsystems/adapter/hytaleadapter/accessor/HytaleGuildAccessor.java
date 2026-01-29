@@ -168,48 +168,103 @@ public class HytaleGuildAccessor implements GuildAccessor {
 
     @Override
     public double getZoneInfluence(UUID guildId, String zoneId) {
+        // In-memory implementation returns 0.0 for untracked zones
         return 0.0;
     }
 
     @Override
     public void addInfluence(UUID guildId, String zoneId, double amount) {
+        // MIGRATION-001: Zone influence tracking requires persistent storage
+        throw new UnsupportedOperationException(
+            "HytaleGuildAccessor.addInfluence() requires persistent zone influence tracking. " +
+            "In-memory implementation does not support zone influence. " +
+            "See MIGRATION-001 for SDK integration requirements."
+        );
     }
 
     @Override
     public void createRank(UUID guildId, String name, int level, Set<String> permissions) {
+        // MIGRATION-001: Custom rank creation requires persistent storage
+        throw new UnsupportedOperationException(
+            "HytaleGuildAccessor.createRank() requires persistent guild rank storage. " +
+            "In-memory implementation uses predefined GuildRank enum. " +
+            "See MIGRATION-001 for SDK integration requirements."
+        );
     }
 
     @Override
     public void deleteRank(UUID guildId, UUID rankId) {
+        // MIGRATION-001: Custom rank deletion requires persistent storage
+        throw new UnsupportedOperationException(
+            "HytaleGuildAccessor.deleteRank() requires persistent guild rank storage. " +
+            "In-memory implementation uses predefined GuildRank enum. " +
+            "See MIGRATION-001 for SDK integration requirements."
+        );
     }
 
     @Override
     public void updateRank(UUID guildId, UUID rankId, String name, int level, Set<String> permissions) {
+        // MIGRATION-001: Custom rank updates require persistent storage
+        throw new UnsupportedOperationException(
+            "HytaleGuildAccessor.updateRank() requires persistent guild rank storage. " +
+            "In-memory implementation uses predefined GuildRank enum. " +
+            "See MIGRATION-001 for SDK integration requirements."
+        );
     }
 
     @Override
     public Object getRank(UUID guildId, UUID rankId) {
-        return null;
+        // MIGRATION-001: Custom rank retrieval requires persistent storage
+        throw new UnsupportedOperationException(
+            "HytaleGuildAccessor.getRank() requires persistent guild rank storage. " +
+            "In-memory implementation uses predefined GuildRank enum. " +
+            "See MIGRATION-001 for SDK integration requirements."
+        );
     }
 
     @Override
     public List<Object> getRanks(UUID guildId) {
-        return Collections.emptyList();
+        // Return predefined ranks as a list - this is valid for in-memory impl
+        return Arrays.asList(GuildRank.values());
     }
 
     @Override
     public void setGuildMotd(UUID guildId, String motd) {
+        // MIGRATION-001: Guild MOTD updates require persistent storage
+        throw new UnsupportedOperationException(
+            "HytaleGuildAccessor.setGuildMotd() requires persistent guild storage. " +
+            "In-memory implementation does not support MOTD updates. " +
+            "See MIGRATION-001 for SDK integration requirements."
+        );
     }
 
     @Override
     public void setGuildDescription(UUID guildId, String description) {
+        // MIGRATION-001: Guild description updates require persistent storage
+        throw new UnsupportedOperationException(
+            "HytaleGuildAccessor.setGuildDescription() requires persistent guild storage. " +
+            "In-memory implementation does not support description updates. " +
+            "See MIGRATION-001 for SDK integration requirements."
+        );
     }
 
     @Override
     public void setRecruitmentStatus(UUID guildId, String status) {
+        // MIGRATION-001: Recruitment status updates require persistent storage
+        throw new UnsupportedOperationException(
+            "HytaleGuildAccessor.setRecruitmentStatus() requires persistent guild storage. " +
+            "In-memory implementation does not support recruitment status updates. " +
+            "See MIGRATION-001 for SDK integration requirements."
+        );
     }
 
     @Override
     public void setGuildEmblem(UUID guildId, String shape, String icon, String primaryColor, String secondaryColor) {
+        // MIGRATION-001: Guild emblem updates require persistent storage
+        throw new UnsupportedOperationException(
+            "HytaleGuildAccessor.setGuildEmblem() requires persistent guild storage. " +
+            "In-memory implementation does not support emblem customization. " +
+            "See MIGRATION-001 for SDK integration requirements."
+        );
     }
 }

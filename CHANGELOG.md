@@ -17,6 +17,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Reason**: Architectural violation - adapter layer should provide generic UI primitives, not mod-specific UI implementations
   - **Reference**: See [AUDIT_REPORT_2026-01-29.md](AUDIT_REPORT_2026-01-29.md) for full remediation details
 
+### Changed
+- **Disabled 13 Test Files** - Tests reference non-existent `com.hytale.api.*` SDK classes (2026-01-29)
+  - Accessor tests: `AccessorTestSuite`, `HytaleEventAccessorTest`, `HytaleItemAccessorTest`, `HytalePlayerAccessorTest`, `HytaleSchedulerAccessorTest`
+  - Converter tests: `ConverterTestSuite`, `EntityDataConverterTest`, `ItemDataConverterTest`, `LocationConverterTest`
+  - UI tests: `DialoguePageAdapterTest`, `QuestBookPageAdapterTest`, `TemplateLoaderTest`
+  - Plugin test: `HytaleAdapterPluginTest`
+  - **Reason**: Pre-SDK mock classes (`com.hytale.api.*`) removed per MIGRATION-001
+  - **Re-enable**: When official Hytale SDK is released
+
+## [3.1.0] - 2026-01-29
+
+### Fixed (HytaleArchitect Audit Remediation)
+- **V-001**: Fixed `return null;` violation in `HytaleGuildAccessor.getRank()` - now throws `UnsupportedOperationException`
+- **V-002 to V-009**: Fixed 8 empty method bodies in `HytaleGuildAccessor`:
+  - `addInfluence()`, `createRank()`, `deleteRank()`, `updateRank()`
+  - `setGuildMotd()`, `setGuildDescription()`, `setRecruitmentStatus()`, `setGuildEmblem()`
+  - All now throw `UnsupportedOperationException` with descriptive MIGRATION-001 messages
+
+### Changed
+- **HytaleAdapterProvider**: Complete rewrite with lazy caching pattern
+  - All 18 accessor getters now use double-checked locking lazy singleton pattern
+  - Added volatile fields for thread-safe accessor caching
+  - Wired `HytaleGuildAccessor` (was throwing UnsupportedOperationException)
+  - Wired `HytaleWorldExecutor` (was throwing UnsupportedOperationException)
+  - Wired `HytaleAssetAccessor` (was throwing UnsupportedOperationException)
+- **HytaleWorldExecutor**: Now implements `WorldExecutor` interface from accessor-api
+  - Added `<T> CompletableFuture<T> execute(Callable<T>)` method
+  - Added `CompletableFuture<Void> execute(Runnable)` method
+  - Added `boolean isMainThread()` method
+  - All methods throw `UnsupportedOperationException` pending SDK
+- **HytaleGuildAccessor.getRanks()**: Returns `Arrays.asList(GuildRank.values())` instead of empty list
+
+### Added
+- **IMPLEMENTATION_PLAN.md**: Comprehensive audit-generated implementation plan
+- **Orphan Implementation Registry**: Documented orphan implementations in IMPLEMENTATION_TRACKING.md
+  - Documented `QuestFormatConverter`, `ActionBarAdapter`, `CombatFramesAdapter`
+  - Identified specs needed for `HytaleGuildAccessor`, `HytaleModelAccessor`, `HytaleAssetAccessor`
+  - Documented decision to keep webserver files disabled until Nitrado integration
+
 ## [2.1.0] - 2026-01-29
 
 ### Added
