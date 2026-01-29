@@ -107,9 +107,9 @@
         <dependency>
             <groupId>au.ellie.hyui</groupId>
             <artifactId>HyUI</artifactId>
-            <version>0.5.3</version>
+            <version>0.5.8</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/../externals/hyui/HyUI-0.5.3-all.jar</systemPath>
+            <systemPath>${project.basedir}/../externals/hyui/HyUI-0.5.8-all.jar</systemPath>
         </dependency>
         
         <!-- =====================================================

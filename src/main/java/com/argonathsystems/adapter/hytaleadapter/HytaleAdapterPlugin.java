@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import java.util.ServiceLoader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import com.argonathsystems.framework.accessorapi.AccessorRegistry;
 import com.hypixel.hytale.server.core.HytaleServer;
 
@@ -22,40 +23,39 @@ public class HytaleAdapterPlugin extends JavaPlugin {
             Object coreServer = HytaleServer.get();
             HytaleAdapterProvider provider = new HytaleAdapterProvider(coreServer);
             AccessorRegistry.registerProvider(provider);
-            getLogger().info("HytaleAdapterProvider initialized and registered.");
+            getLogger().at(Level.INFO).log("HytaleAdapterProvider initialized and registered.");
             
             // Load Platform-Agnostic Mods via ServiceLoader
             ServiceLoader<ArgonathMod> loader = ServiceLoader.load(ArgonathMod.class, getClass().getClassLoader());
             int count = 0;
             for (ArgonathMod mod : loader) {
-                 getLogger().info("Loading ArgonathMod: " + mod.getClass().getSimpleName());
+                 getLogger().at(Level.INFO).log("Loading ArgonathMod: " + mod.getClass().getSimpleName());
                  try {
                      mod.onEnable();
                      loadedMods.add(mod);
                      count++;
                  } catch (Exception e) {
-                     getLogger().error("Failed to enable mod: " + mod.getClass().getName(), e);
+                     getLogger().at(Level.SEVERE).withCause(e).log("Failed to enable mod: " + mod.getClass().getName());
                  }
             }
-            getLogger().info("Loaded " + count + " Argonath Mods.");
+            getLogger().at(Level.INFO).log("Loaded " + count + " Argonath Mods.");
 
         } catch (Exception e) {
-            getLogger().error("Failed to initialize HytaleAdapterPlugin", e);
+            getLogger().at(Level.SEVERE).withCause(e).log("Failed to initialize HytaleAdapterPlugin");
             throw new RuntimeException("Critical setup failure", e);
         }
     }
     
-    @Override
     public void onDisable() {
-        getLogger().info("Disabling Argonath Mods...");
+        getLogger().at(Level.INFO).log("Disabling Argonath Mods...");
         for (ArgonathMod mod : loadedMods) {
             try {
                 mod.onDisable();
             } catch (Exception e) {
-                getLogger().error("Error disabling mod: " + mod.getClass().getName(), e);
+                getLogger().at(Level.SEVERE).withCause(e).log("Error disabling mod: " + mod.getClass().getName());
             }
         }
         loadedMods.clear();
-        getLogger().info("HytaleAdapterPlugin disabled.");
+        getLogger().at(Level.INFO).log("HytaleAdapterPlugin disabled.");
     }
 }

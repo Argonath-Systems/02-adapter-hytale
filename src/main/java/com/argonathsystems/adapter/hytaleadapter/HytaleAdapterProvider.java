@@ -53,9 +53,7 @@ public class HytaleAdapterProvider implements AccessorProvider {
     
     @Override
     public ConfigAccessor getConfigAccessor() {
-        throw new UnsupportedOperationException(
-            "ConfigAccessor not yet implemented"
-        );
+        return new HytaleConfigAccessor();
     }
     
     @Override

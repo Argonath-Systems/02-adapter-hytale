@@ -95,16 +95,39 @@ undeploy:
 # HYTALE SERVER MANAGEMENT
 # ============================================================
 
-# Install HytaleServer.jar to local Maven repo
-install-hytale-server JAR_PATH:
-    @echo "📦 Installing HytaleServer.jar to local Maven repo..."
+# Install HytaleServer.jar to local Maven repo (uses $HYTALE_SERVER_JAR env var)
+install-hytale-server:
+    #!/usr/bin/env bash
+    set -e
+    
+    # Check if HYTALE_SERVER_JAR is set
+    if [ -z "$HYTALE_SERVER_JAR" ]; then
+        echo "❌ Error: HYTALE_SERVER_JAR environment variable not set"
+        echo "Please source set_env-*.sh first:"
+        echo "  source set_env-anduril.sh  # or set_env-sauron.sh"
+        exit 1
+    fi
+    
+    # Check if JAR exists
+    if [ ! -f "$HYTALE_SERVER_JAR" ]; then
+        echo "❌ Error: HytaleServer.jar not found at: $HYTALE_SERVER_JAR"
+        exit 1
+    fi
+    
+    echo "📦 Installing HytaleServer.jar to local Maven repo..."
+    echo "   Source: $HYTALE_SERVER_JAR"
+    
     mvn install:install-file \
-        -Dfile="" \
+        -Dfile="$HYTALE_SERVER_JAR" \
         -DgroupId="com.hypixel.hytale" \
         -DartifactId="HytaleServer-parent" \
         -Dversion="1.0-SNAPSHOT" \
         -Dpackaging=jar
-    @echo "✅ HytaleServer.jar installed"
+    
+    echo "✅ HytaleServer.jar installed to local Maven repository"
+    echo "   GroupId: com.hypixel.hytale"
+    echo "   ArtifactId: HytaleServer-parent"
+    echo "   Version: 1.0-SNAPSHOT"
 
 # ============================================================
 # CODE QUALITY

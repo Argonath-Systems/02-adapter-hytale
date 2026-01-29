@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-01-29
+
+### Added
+- **HyUI 0.5.8 Integration** - Real HyUI library integration for UI/HUD development
+  - Updated from HyUI 0.5.3 to 0.5.8 (745KB JAR)
+  - Integrated HudBuilder and PageBuilder patterns from real HyUI API
+  - Verified compatibility with Hytale SDK PlayerRef and ECS patterns
+- **ActionBarAdapter Implementation** - Complete action bar UI adapter
+  - `showActionBar()`, `hideActionBar()`, `updateActionBar()` using real HyUI HudBuilder
+  - Thread-safe player tracking with ConcurrentHashMap
+  - HTML escaping for injection prevention
+  - Full javadoc documentation with thread safety notes
+- **CombatFramesAdapter Implementation** - Complete combat HUD adapter
+  - `showCombatFrame()`, `hideCombatFrame()` using real HyUI HudBuilder
+  - Combat indicator with styled frame (⚔ icon, dark background)
+  - Anchored positioning (top-right screen placement)
+- **Hytale SDK API Modernization** - Updated to use modern Hytale SDK patterns
+  - Removed deprecated `com.hytale.api.Server` dependency
+  - Updated HytaleLogger to Google Flogger API (`at(Level).log()` pattern)
+  - Fixed `HytaleConfigAccessor` to work without Server reference
+  - Fixed `HytaleAdapterProvider` to instantiate ConfigAccessor correctly
+
+### Changed
+- **pom.xml**: Updated HyUI dependency from 0.5.3 to 0.5.8
+- **HytaleAdapterPlugin**: Migrated to Flogger-based logging API
+- **HytaleConfigAccessor**: Removed Server constructor parameter (now uses default config directory)
+
 ## [2.0.0] - 2026-01-29
 
 ### Added

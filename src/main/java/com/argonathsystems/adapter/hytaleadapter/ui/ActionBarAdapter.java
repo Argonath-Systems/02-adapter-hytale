@@ -1,26 +1,92 @@
 package com.argonathsystems.adapter.hytaleadapter.ui;
 
+import au.ellie.hyui.builders.HudBuilder;
+import au.ellie.hyui.builders.HyUIHud;
+import au.ellie.hyui.builders.LabelBuilder;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK & HyUI</p>
+ * Adapter for managing action bar UI elements using HyUI.
+ * Action bars are non-intrusive HUD elements displayed near the bottom of the player's screen.
+ * 
+ * <p><b>Thread Safety:</b> This adapter uses ConcurrentHashMap for thread-safe player tracking.
+ * HUD operations should be executed on the world thread via world.execute().</p>
+ * 
+ * @since 2.1.0
  */
 public class ActionBarAdapter {
-    public void showActionBar(UUID playerId, String message) {
-        throw new UnsupportedOperationException(
-            "ActionBarAdapter.showActionBar() requires official Hytale SDK Player and HyUI"
-        );
+    private final Map<UUID, HyUIHud> activeActionBars = new ConcurrentHashMap<>();
+    
+    /**
+     * Shows an action bar message to the specified player.
+     * Creates a new HUD element anchored near the bottom center of the screen.
+     * 
+     * @param playerRef the player to show the action bar to
+     * @param message the message to display
+     */
+    public void showActionBar(PlayerRef playerRef, String message) {
+        // Remove existing action bar if present
+        hideActionBar(playerRef);
+        
+        // Create new action bar HUD
+        HyUIHud hud = HudBuilder.detachedHud()
+            .fromHtml("""
+                <div style="anchor-bottom: 60; anchor-center-horizontal: true;">
+                    <label id="action-text">%s</label>
+                </div>
+                """.formatted(escapeHtml(message)))
+            .show(playerRef);
+        
+        activeActionBars.put(playerRef.getUuid(), hud);
     }
     
-    public void hideActionBar(UUID playerId) {
-        throw new UnsupportedOperationException(
-            "ActionBarAdapter.hideActionBar() requires official Hytale SDK Player and HyUI"
-        );
+    /**
+     * Hides the action bar for the specified player.
+     * 
+     * @param playerRef the player whose action bar should be hidden
+     */
+    public void hideActionBar(PlayerRef playerRef) {
+        HyUIHud hud = activeActionBars.remove(playerRef.getUuid());
+        if (hud != null) {
+            hud.remove();
+        }
     }
     
-    public void updateActionBar(UUID playerId, String message) {
-        throw new UnsupportedOperationException(
-            "ActionBarAdapter.updateActionBar() requires official Hytale SDK Player and HyUI"
-        );
+    /**
+     * Updates the message of an existing action bar.
+     * If no action bar is currently shown, this method has no effect.
+     * 
+     * @param playerRef the player whose action bar should be updated
+     * @param message the new message to display
+     */
+    public void updateActionBar(PlayerRef playerRef, String message) {
+        HyUIHud hud = activeActionBars.get(playerRef.getUuid());
+        if (hud != null) {
+            hud.getById("action-text", LabelBuilder.class).ifPresent(label -> {
+                label.withText(escapeHtml(message));
+            });
+        }
+    }
+    
+    /**
+     * Escapes HTML special characters to prevent injection.
+     * 
+     * @param text the text to escape
+     * @return the escaped text
+     */
+    private String escapeHtml(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#39;");
     }
 }
