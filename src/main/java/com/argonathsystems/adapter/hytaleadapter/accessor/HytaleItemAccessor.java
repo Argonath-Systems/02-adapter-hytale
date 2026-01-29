@@ -5,10 +5,6 @@ import com.argonathsystems.framework.accessorapi.ItemAccessor;
 import com.argonathsystems.framework.accessorapi.dto.ItemData;
 import com.argonathsystems.framework.accessorapi.dto.ItemDefinitionData;
 import com.argonathsystems.framework.accessorapi.dto.ItemDefinitionData.ItemRarity;
-import com.hytale.api.Server;
-import com.hytale.api.inventory.ItemStack;
-import com.hytale.api.registry.ItemRegistry;
-import com.hytale.api.registry.ItemType;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,9 +21,20 @@ import java.util.stream.Collectors;
  * @author Argonath Systems Team
  * @version 1.0.0
  */
+/**
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ * 
+ * <p>This accessor implements Item creation functionality.</p>
+ * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
+ * which is not available in the development environment.</p>
+ * 
+ * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
+ * 
+ * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Status</a>
+ */
 public class HytaleItemAccessor implements ItemAccessor {
     
-    private final Server server;
+    private final Object /* Server */ server;
     
     /** Cache of item definitions - populated lazily from Hytale registry */
     private final Map<String, ItemDefinitionData> definitionCache = new ConcurrentHashMap<>();
@@ -38,7 +45,7 @@ public class HytaleItemAccessor implements ItemAccessor {
     /** Whether the cache has been initialized */
     private volatile boolean cacheInitialized = false;
 
-    public HytaleItemAccessor(Server server) {
+    public HytaleItemAccessor(Object /* Server */ server) {
         this.server = server;
     }
 
@@ -78,8 +85,8 @@ public class HytaleItemAccessor implements ItemAccessor {
             throw new IllegalArgumentException("Unknown item type: " + itemId);
         }
         
-        // Create Hytale ItemStack and convert to our DTO
-        ItemStack hytaleStack = server.createItemStack(itemId, amount);
+        // Create Hytale Object /* ItemStack */ and convert to our DTO
+        Object /* ItemStack */ hytaleStack = server.createItemStack(itemId, amount);
         return ItemDataConverter.toDTO(hytaleStack);
     }
 

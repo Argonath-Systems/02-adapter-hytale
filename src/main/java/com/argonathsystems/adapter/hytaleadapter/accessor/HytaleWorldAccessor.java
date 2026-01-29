@@ -3,12 +3,6 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 import com.argonathsystems.adapter.hytaleadapter.converter.LocationConverter;
 import com.argonathsystems.framework.accessorapi.WorldAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
-import com.hytale.api.Location;
-import com.hytale.api.Server;
-import com.hytale.api.block.Block;
-import com.hytale.api.world.Biome;
-import com.hytale.api.world.World;
-import com.hytale.api.world.Zone;
 
 import java.util.Optional;
 
@@ -22,9 +16,20 @@ import java.util.Optional;
  * @author Argonath Systems Team
  * @version 1.0.0
  */
+/**
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ * 
+ * <p>This accessor implements World manipulation functionality.</p>
+ * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
+ * which is not available in the development environment.</p>
+ * 
+ * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
+ * 
+ * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Status</a>
+ */
 public class HytaleWorldAccessor implements WorldAccessor {
     
-    private final Server server;
+    private final Object /* Server */ server;
     
     /** Ticks representing daytime range (0-12000 = day, 12000-24000 = night) */
     private static final long DAY_START = 0;
@@ -33,7 +38,7 @@ public class HytaleWorldAccessor implements WorldAccessor {
     /** Default search parameters for safe location */
     private static final int DEFAULT_VERTICAL_SEARCH = 10;
 
-    public HytaleWorldAccessor(Server server) {
+    public HytaleWorldAccessor(Object /* Server */ server) {
         this.server = server;
     }
 
@@ -269,7 +274,7 @@ public class HytaleWorldAccessor implements WorldAccessor {
             return Optional.empty();
         }
         
-        Location spawn = world.getSpawnLocation();
+        Object /* Location */ spawn = world.getSpawnLocation();
         return Optional.ofNullable(LocationConverter.toDTO(spawn));
     }
 

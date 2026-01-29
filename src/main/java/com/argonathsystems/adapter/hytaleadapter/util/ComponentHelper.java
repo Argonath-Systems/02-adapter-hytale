@@ -1,7 +1,5 @@
 package com.argonathsystems.adapter.hytaleadapter.util;
 
-import com.hytale.api.component.Component;
-import com.hytale.api.entity.Entity;
 
 import java.util.Optional;
 

@@ -2,10 +2,56 @@ package com.argonathsystems.adapter.hytaleadapter.converter;
 
 import com.argonathsystems.framework.accessorapi.dto.EntityData;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
-import com.hytale.api.entity.Entity;
-import com.hytale.api.Location;
 
-import java.util.UUID;
+/**
+ * Converts between Hytale Entity/EntityRef and platform-agnostic EntityData DTO.
+ * 
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ * 
+ * <p>This converter needs to be implemented with the official Hytale SDK:</p>
+ * <ul>
+ *   <li>Import: {@code com.hypixel.hytale.server.core.entity.EntityRef}</li>
+ *   <li>ECS Components: Access TransformComponent, HealthComponent, etc.</li>
+ *   <li>Pattern: Use entity.getComponent(ComponentType.class)</li>
+ * </ul>
+ * 
+ * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Implementation Status</a>
+ * @author Argonath Systems Team
+ * @version 3.0.0-MIGRATION-001
+ * @since MIGRATION-001
+ */
+public class EntityDataConverter {
+    
+    /**
+     * Convert Hytale EntityRef to platform-agnostic EntityData.
+     * 
+     * @param hytaleEntity The Hytale entity reference (when SDK is available)
+     * @return EntityData DTO
+     * @throws UnsupportedOperationException until official Hytale SDK is integrated
+     */
+    public static EntityData toDTO(Object hytaleEntity) {
+        throw new UnsupportedOperationException(
+            "EntityDataConverter.toDTO() not yet implemented: Requires official Hytale SDK EntityRef and ECS component access. " +
+            "Implementation blocked until SDK is available. " +
+            "See docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md for details."
+        );
+    }
+    
+    /**
+     * Apply EntityData DTO properties to an existing Hytale entity.
+     * 
+     * @param dto The EntityData DTO
+     * @param existingEntity The existing entity reference to update (when SDK is available)
+     * @throws UnsupportedOperationException until official Hytale SDK is integrated
+     */
+    public static void applyToEntity(EntityData dto, Object existingEntity) {
+        throw new UnsupportedOperationException(
+            "EntityDataConverter.applyToEntity() not yet implemented: Requires official Hytale SDK EntityRef and ECS component modification. " +
+            "Implementation blocked until SDK is available. " +
+            "See docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md for details."
+        );
+    }
+}
 
 /**
  * Converts between Hytale Entity and platform-agnostic EntityData DTO.

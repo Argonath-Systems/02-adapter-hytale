@@ -1,9 +1,6 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
 import com.argonathsystems.framework.accessorapi.ModelAccessor;
-import com.hytale.api.Server;
-import com.hytale.api.entity.Entity;
-import com.hytale.api.world.World;
 
 import java.util.Map;
 import java.util.UUID;
@@ -26,12 +23,23 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author Argonath Systems
  * @since 1.1.0
  */
+/**
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ * 
+ * <p>This accessor implements Model rendering functionality.</p>
+ * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
+ * which is not available in the development environment.</p>
+ * 
+ * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
+ * 
+ * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Status</a>
+ */
 public class HytaleModelAccessor implements ModelAccessor {
     
-    private final Server server;
-    private final Map<UUID, Entity> entityCache = new ConcurrentHashMap<>();
+    private final Object /* Server */ server;
+    private final Map<UUID, Object /* Entity */> entityCache = new ConcurrentHashMap<>();
     
-    public HytaleModelAccessor(Server server) {
+    public HytaleModelAccessor(Object /* Server */ server) {
         this.server = server;
     }
     
@@ -47,7 +55,7 @@ public class HytaleModelAccessor implements ModelAccessor {
     
     @Override
     public void removeModel(UUID modelId) {
-        Entity entity = getEntity(modelId);
+        Object /* Entity */ entity = getEntity(modelId);
         if (entity != null) {
             entity.remove();
             entityCache.remove(modelId);
@@ -93,7 +101,7 @@ public class HytaleModelAccessor implements ModelAccessor {
         // Model modification not exposed in current Hytale API.
         throw new UnsupportedOperationException(
             "Model modification not supported by Hytale API. " +
-            "Entity models are determined by entity type at spawn time."
+            "Object /* Entity */ models are determined by entity type at spawn time."
         );
     }
     
@@ -135,7 +143,7 @@ public class HytaleModelAccessor implements ModelAccessor {
     public void setScale(UUID entityId, float scale) {
         // Scale modification not exposed in current Hytale API.
         throw new UnsupportedOperationException(
-            "Entity scale modification not supported by Hytale API. " +
+            "Object /* Entity */ scale modification not supported by Hytale API. " +
             "Requires ModelComponent or transform scale extension."
         );
     }
@@ -143,7 +151,7 @@ public class HytaleModelAccessor implements ModelAccessor {
     @Override
     public void setGlowing(UUID entityId, boolean glowing) {
         // Glow effect control not exposed in current Hytale API.
-        // The Entity interface does not have setGlowing() method.
+        // The Object /* Entity */ interface does not have setGlowing() method.
         throw new UnsupportedOperationException(
             "Glow effect not supported by Hytale API. " +
             "Requires visual effects API extension."
@@ -159,16 +167,16 @@ public class HytaleModelAccessor implements ModelAccessor {
         );
     }
     
-    private Entity getEntity(UUID entityId) {
+    private Object /* Entity */ getEntity(UUID entityId) {
         // Check cache first
-        Entity cached = entityCache.get(entityId);
+        Object /* Entity */ cached = entityCache.get(entityId);
         if (cached != null) {
             return cached;
         }
         
         // Search all worlds for the entity
         for (World world : server.getWorlds()) {
-            Entity entity = world.getEntity(entityId);
+            Object /* Entity */ entity = world.getEntity(entityId);
             if (entity != null) {
                 entityCache.put(entityId, entity);
                 return entity;
@@ -184,7 +192,7 @@ public class HytaleModelAccessor implements ModelAccessor {
     public void clearCache() {
         entityCache.entrySet().removeIf(entry -> {
             try {
-                Entity entity = entry.getValue();
+                Object /* Entity */ entity = entry.getValue();
                 entity.getUniqueId(); // Check if entity is still valid
                 return false;
             } catch (Exception e) {

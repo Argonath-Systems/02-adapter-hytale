@@ -3,7 +3,6 @@ package com.argonathsystems.adapter.hytaleadapter;
 import com.argonathsystems.adapter.hytaleadapter.accessor.*;
 import com.argonathsystems.adapter.hytaleadapter.thread.HytaleWorldExecutor;
 import com.argonathsystems.framework.accessorapi.*;
-import com.hytale.api.Server;
 
 public class HytaleAdapterProvider implements AccessorProvider {
     private final Server server;

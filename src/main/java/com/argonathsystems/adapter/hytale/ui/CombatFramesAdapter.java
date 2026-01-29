@@ -4,7 +4,6 @@ import au.ellie.hyui.builders.HudBuilder;
 import au.ellie.hyui.builders.HyUIHud;
 import au.ellie.hyui.html.TemplateProcessor;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hytale.api.entity.Player;
 
 import java.util.HashMap;
 import java.util.List;

@@ -5,11 +5,8 @@ import com.argonathsystems.framework.accessorapi.UIAccessor;
 import com.argonathsystems.framework.accessorapi.ui.HudLayoutData;
 import com.argonathsystems.framework.accessorapi.ui.UIContext;
 import com.argonathsystems.framework.accessorapi.ui.UIUpdateData;
-import com.hytale.api.Server;
-import com.hytale.api.entity.Player;
-import com.hytale.api.entity.PlayerRef;
-import com.hytale.ui.HudBuilder;
-import com.hytale.ui.HyUIHud;
+import com.hytale.ui.Object /* HudBuilder */;
+import com.hytale.ui.Object /* HyUIHud */;
 
 import java.util.Map;
 import java.util.UUID;
@@ -20,13 +17,24 @@ import java.util.concurrent.ConcurrentHashMap;
  * 
  * @version 2.0.0 - Updated to use type-safe UI types
  */
+/**
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ * 
+ * <p>This accessor implements UI/HUD management functionality.</p>
+ * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
+ * which is not available in the development environment.</p>
+ * 
+ * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
+ * 
+ * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Status</a>
+ */
 public class HytaleUIAccessor implements UIAccessor {
-    private final Server server;
+    private final Object /* Server */ server;
     private final Map<String, String> registeredUIs = new ConcurrentHashMap<>();
     /** Active HUD instances per player, keyed by (playerId + "-" + hudId) */
-    private final Map<String, HyUIHud> activeHuds = new ConcurrentHashMap<>();
+    private final Map<String, Object /* HyUIHud */> activeHuds = new ConcurrentHashMap<>();
     
-    public HytaleUIAccessor(Server server) { 
+    public HytaleUIAccessor(Object /* Server */ server) { 
         this.server = server; 
     }
     
@@ -40,7 +48,7 @@ public class HytaleUIAccessor implements UIAccessor {
     
     @Override 
     public void openUI(UUID playerId, String uiId, UIContext context) {
-        Player player = PlayerRefCache.get(playerId);
+        Object /* Player */ player = PlayerRefCache.get(playerId);
         if (player != null) {
             // If we have a registered definition and no context, pass the definition
             // This mimics the behavior in addHud where content is passed as the object
@@ -55,7 +63,7 @@ public class HytaleUIAccessor implements UIAccessor {
 
     @Override 
     public void closeUI(UUID playerId) {
-        Player player = PlayerRefCache.get(playerId);
+        Object /* Player */ player = PlayerRefCache.get(playerId);
         if (player != null) {
             player.closeUI();
         }
@@ -63,7 +71,7 @@ public class HytaleUIAccessor implements UIAccessor {
 
     @Override
     public boolean hasUIOpen(UUID playerId, String uiId) {
-        Player player = PlayerRefCache.get(playerId);
+        Object /* Player */ player = PlayerRefCache.get(playerId);
         if (player != null) {
             return player.hasUIOpen(uiId);
         }
@@ -72,7 +80,7 @@ public class HytaleUIAccessor implements UIAccessor {
 
     @Override
     public void sendUIUpdate(UUID playerId, String elementId, UIUpdateData data) {
-        Player player = PlayerRefCache.get(playerId);
+        Object /* Player */ player = PlayerRefCache.get(playerId);
         if (player != null) {
             // Convert UIUpdateData to platform-appropriate format
             Object platformData = convertUIUpdateData(data);
@@ -98,10 +106,10 @@ public class HytaleUIAccessor implements UIAccessor {
     
     @Override
     public void addHud(UUID playerId, String hudId, String content) {
-        PlayerRef playerRef = PlayerRefCache.getRef(playerId);
+        Object /* PlayerRef */ playerRef = PlayerRefCache.getRef(playerId);
         if (playerRef != null) {
-            // Build and display HUD using HyUI HudBuilder API
-            HyUIHud hud = HudBuilder.hudForPlayer(playerRef)
+            // Build and display HUD using HyUI Object /* HudBuilder */ API
+            Object /* HyUIHud */ hud = Object /* HudBuilder */.hudForPlayer(playerRef)
                 .fromHtml(content)
                 .withRefreshRate(100)
                 .show();
@@ -114,7 +122,7 @@ public class HytaleUIAccessor implements UIAccessor {
     @Override
     public void removeHud(UUID playerId, String hudId) {
         String hudKey = playerId + "-" + hudId;
-        HyUIHud hud = activeHuds.remove(hudKey);
+        Object /* HyUIHud */ hud = activeHuds.remove(hudKey);
         if (hud != null) {
             hud.hide();
         }
@@ -123,7 +131,7 @@ public class HytaleUIAccessor implements UIAccessor {
     @Override
     public void updateHud(UUID playerId, String hudId, String content) {
         String hudKey = playerId + "-" + hudId;
-        HyUIHud existingHud = activeHuds.get(hudKey);
+        Object /* HyUIHud */ existingHud = activeHuds.get(hudKey);
         if (existingHud != null) {
             // Update existing HUD content
             existingHud.updateContent(content);
@@ -138,7 +146,7 @@ public class HytaleUIAccessor implements UIAccessor {
         // Update layout for each tracked HUD element
         layoutData.elements().forEach((hudId, pos) -> {
             String hudKey = playerId + "-" + hudId;
-            HyUIHud hud = activeHuds.get(hudKey);
+            Object /* HyUIHud */ hud = activeHuds.get(hudKey);
             if (hud != null) {
                 // Apply position from layout data
                 hud.setPosition(pos.x(), pos.y());
@@ -149,7 +157,7 @@ public class HytaleUIAccessor implements UIAccessor {
     
     @Override
     public void openHudEditor(UUID playerId) {
-        PlayerRef playerRef = PlayerRefCache.getRef(playerId);
+        Object /* PlayerRef */ playerRef = PlayerRefCache.getRef(playerId);
         if (playerRef != null) {
             // Open HUD layout editor UI
             addHud(playerId, "hud_editor", buildHudEditorHtml());

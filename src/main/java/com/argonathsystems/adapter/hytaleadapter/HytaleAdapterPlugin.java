@@ -7,7 +7,6 @@ import java.util.ServiceLoader;
 import java.util.ArrayList;
 import java.util.List;
 import com.argonathsystems.framework.accessorapi.AccessorRegistry;
-import com.hytale.api.Server;
 import com.hypixel.hytale.server.core.HytaleServer;
 
 public class HytaleAdapterPlugin extends JavaPlugin {

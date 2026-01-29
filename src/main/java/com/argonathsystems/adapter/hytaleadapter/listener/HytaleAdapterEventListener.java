@@ -3,9 +3,6 @@ package com.argonathsystems.adapter.hytaleadapter.listener;
 import com.argonathsystems.adapter.hytaleadapter.accessor.HytaleEventAccessor;
 import com.argonathsystems.framework.accessorapi.event.PlayerJoinEvent;
 import com.argonathsystems.framework.accessorapi.event.PlayerQuitEvent;
-import com.hytale.api.event.EventListener;
-import com.hytale.api.event.Handler;
-import com.hytale.api.entity.Player;
 import java.util.UUID;
 
 import com.argonathsystems.adapter.hytaleadapter.util.PlayerRefCache;

@@ -2,9 +2,6 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 
 import com.argonathsystems.framework.accessorapi.StorageAccessor;
 import com.argonathsystems.framework.accessorapi.data.DataValue;
-import com.hytale.api.Server;
-import com.hytale.api.data.DataStorage;
-import com.hytale.api.data.DataContainer;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,9 +20,20 @@ import java.util.stream.Collectors;
  * @author Argonath Systems Team
  * @version 1.0.0
  */
+/**
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ * 
+ * <p>This accessor implements Data persistence functionality.</p>
+ * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
+ * which is not available in the development environment.</p>
+ * 
+ * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
+ * 
+ * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Status</a>
+ */
 public class HytaleStorageAccessor implements StorageAccessor {
     
-    private final Server server;
+    private final Object /* Server */ server;
     
     /** In-memory cache for fast access. Maps namespace -> (key -> value) */
     private final Map<String, Map<String, DataValue>> cache = new ConcurrentHashMap<>();
@@ -36,7 +44,7 @@ public class HytaleStorageAccessor implements StorageAccessor {
     /** Storage ID prefix to identify our data in Hytale's storage */
     private static final String STORAGE_PREFIX = "argonath_";
 
-    public HytaleStorageAccessor(Server server) {
+    public HytaleStorageAccessor(Object /* Server */ server) {
         this.server = server;
         loadAllFromPersistent();
     }

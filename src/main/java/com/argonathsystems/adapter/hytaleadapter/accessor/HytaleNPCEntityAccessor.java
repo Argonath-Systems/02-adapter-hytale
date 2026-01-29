@@ -5,10 +5,6 @@ import com.argonathsystems.framework.accessorapi.EntityAccessor;
 import com.argonathsystems.framework.accessorapi.data.DataValue;
 import com.argonathsystems.framework.accessorapi.dto.EntityData;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
-import com.hytale.api.Location;
-import com.hytale.api.Server;
-import com.hytale.api.entity.Entity;
-import com.hytale.api.world.World;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -19,34 +15,29 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * Hytale implementation of EntityAccessor.
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
  * 
- * <p>Provides entity management using the Hytale API.
+ * <p>This accessor implements NPC entity management functionality.</p>
+ * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
+ * which is not available in the development environment.</p>
  * 
- * <p><strong>API Limitations:</strong>
- * <ul>
- *   <li>Entity spawning is not supported (only Holograms can be spawned via World.spawnHologram())</li>
- *   <li>Navigation/pathfinding is not exposed in the basic Hytale API</li>
- *   <li>Metadata storage must use an external storage mechanism</li>
- * </ul>
+ * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
  * 
- * @author Argonath Systems
- * @since 1.1.0
- * @version 2.0.0 - Updated to use DataValue for metadata
+ * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Status</a>
  */
 public class HytaleNPCEntityAccessor implements EntityAccessor {
     
-    private final Server server;
-    private final Map<UUID, Entity> entityCache = new ConcurrentHashMap<>();
+    private final Object server; // Server
+    private final Map<UUID, Object> entityCache = new ConcurrentHashMap<>(); // Entity cache
     private final Map<String, Map<String, DataValue>> entityMetadata = new ConcurrentHashMap<>();
     
-    public HytaleNPCEntityAccessor(Server server) {
+    public HytaleNPCEntityAccessor(Object /* Server */ server) {
         this.server = server;
     }
     
     @Override
     public Optional<EntityData> getEntity(UUID entityId) {
-        Entity entity = findEntity(entityId);
+        Object /* Entity */ entity = findEntity(entityId);
         if (entity == null) {
             return Optional.empty();
         }
@@ -75,7 +66,7 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
         double radiusSquared = radius * radius;
         return world.getEntities().stream()
                 .filter(entity -> {
-                    Location entityLoc = entity.getLocation();
+                    Object /* Location */ entityLoc = entity.getLocation();
                     double dx = entityLoc.getX() - location.x();
                     double dy = entityLoc.getY() - location.y();
                     double dz = entityLoc.getZ() - location.z();
@@ -90,7 +81,7 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
         // NOTE: Current Hytale API does not support spawning arbitrary entities.
         // Only Holograms can be spawned via World.spawnHologram().
         throw new UnsupportedOperationException(
-            "Entity spawning not yet supported by Hytale API. " +
+            "Object /* Entity */ spawning not yet supported by Hytale API. " +
             "Only Holograms can be spawned via World.spawnHologram(). " +
             "Custom entity spawning requires future API extensions or command-based workarounds."
         );
@@ -98,7 +89,7 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
     
     @Override
     public void removeEntity(UUID entityId) {
-        Entity entity = findEntity(entityId);
+        Object /* Entity */ entity = findEntity(entityId);
         if (entity != null) {
             entity.remove();
             entityCache.remove(entityId);
@@ -108,7 +99,7 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
     
     @Override
     public void damage(UUID entityId, int amount) {
-        Entity entity = findEntity(entityId);
+        Object /* Entity */ entity = findEntity(entityId);
         if (entity == null) return;
         
         double newHealth = Math.max(0, entity.getHealth() - amount);
@@ -117,7 +108,7 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
     
     @Override
     public void heal(UUID entityId, int amount) {
-        Entity entity = findEntity(entityId);
+        Object /* Entity */ entity = findEntity(entityId);
         if (entity == null) return;
         
         double newHealth = Math.min(entity.getMaxHealth(), entity.getHealth() + amount);
@@ -137,10 +128,10 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
     
     @Override
     public void teleport(UUID entityId, LocationData target) {
-        Entity entity = findEntity(entityId);
+        Object /* Entity */ entity = findEntity(entityId);
         if (entity == null) return;
         
-        Location hytaleLocation = LocationConverter.fromDTO(target);
+        Object /* Location */ hytaleLocation = LocationConverter.fromDTO(target);
         entity.teleport(hytaleLocation);
     }
     
@@ -164,54 +155,36 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
     
     /**
      * Convert a Hytale Entity to EntityData DTO.
+     * 
+     * @param entity the entity object (when SDK is available)
+     * @return EntityData DTO
+     * @throws UnsupportedOperationException until official Hytale SDK is integrated
      */
-    private EntityData toEntityData(Entity entity) {
-        return new EntityData(
-                entity.getUniqueId(),
-                entity.getType(),
-                entity.getName(),
-                LocationConverter.toDTO(entity.getLocation()),
-                (int) entity.getHealth(),
-                (int) entity.getMaxHealth()
+    private EntityData toEntityData(Object entity) {
+        throw new UnsupportedOperationException(
+            "HytaleNPCEntityAccessor.toEntityData() not yet implemented: Requires official Hytale SDK Entity/EntityRef. " +
+            "See docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md for details."
         );
     }
     
     /**
-     * Find an entity by UUID, using cache first, then searching all worlds.
+     * Find an entity by UUID.
+     * 
+     * @param entityId entity UUID
+     * @return entity object (when SDK is available)
+     * @throws UnsupportedOperationException until official Hytale SDK is integrated
      */
-    private Entity findEntity(UUID entityId) {
-        // Check cache first
-        Entity cached = entityCache.get(entityId);
-        if (cached != null) {
-            return cached;
-        }
-        
-        // Search all worlds for the entity
-        for (World world : server.getWorlds()) {
-            Entity entity = world.getEntity(entityId);
-            if (entity != null) {
-                entityCache.put(entityId, entity);
-                return entity;
-            }
-        }
-        
-        return null;
+    private Object findEntity(UUID entityId) {
+        throw new UnsupportedOperationException(
+            "HytaleNPCEntityAccessor.findEntity() not yet implemented: Requires official Hytale SDK Entity/EntityRef. " +
+            "See docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md for details."
+        );
     }
     
     /**
-     * Clears the entity cache. Call periodically to prevent memory leaks from despawned entities.
+     * Clears the entity cache.
      */
     public void clearCache() {
-        // Remove invalid entities from cache
-        entityCache.entrySet().removeIf(entry -> {
-            try {
-                Entity entity = entry.getValue();
-                // Try accessing the entity - if it's despawned, this might fail or return invalid data
-                entity.getUniqueId();
-                return false; // Keep valid entities
-            } catch (Exception e) {
-                return true; // Remove invalid entities
-            }
-        });
+        entityCache.clear();
     }
 }

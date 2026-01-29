@@ -1,7 +1,6 @@
 package com.argonathsystems.adapter.hytaleadapter.thread;
 
 import com.argonathsystems.framework.accessorapi.thread.WorldExecutor;
-import com.hytale.api.Server;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;

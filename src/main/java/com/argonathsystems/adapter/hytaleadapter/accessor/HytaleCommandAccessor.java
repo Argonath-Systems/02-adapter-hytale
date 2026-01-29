@@ -2,7 +2,6 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 
 import com.argonathsystems.framework.accessorapi.CommandAccessor;
 import com.argonathsystems.framework.accessorapi.command.CommandSender;
-import com.hytale.api.Server;
 
 /**
  * Hytale implementation of CommandAccessor.
@@ -12,10 +11,21 @@ import com.hytale.api.Server;
  * @author Argonath Systems Team
  * @version 2.0.0
  */
+/**
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ * 
+ * <p>This accessor implements Command registration functionality.</p>
+ * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
+ * which is not available in the development environment.</p>
+ * 
+ * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
+ * 
+ * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Status</a>
+ */
 public class HytaleCommandAccessor implements CommandAccessor {
-    private final Server server;
+    private final Object /* Server */ server;
 
-    public HytaleCommandAccessor(Server server) {
+    public HytaleCommandAccessor(Object /* Server */ server) {
         this.server = server;
     }
 

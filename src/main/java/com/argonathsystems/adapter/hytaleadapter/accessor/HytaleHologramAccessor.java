@@ -3,16 +3,23 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 import com.argonathsystems.adapter.hytaleadapter.converter.LocationConverter;
 import com.argonathsystems.framework.accessorapi.HologramAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
-import com.hytale.api.Server;
-import com.hytale.api.world.World;
-import com.hytale.api.entity.Entity;
-import com.hytale.api.entity.Hologram;
 
 import java.util.UUID;
 
+/**
+ * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ * 
+ * <p>This accessor implements Hologram display functionality.</p>
+ * <p>Implementation requires the official Hytale SDK (com.hypixel.hytale.*)
+ * which is not available in the development environment.</p>
+ * 
+ * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
+ * 
+ * @see <a href="file://../../../docs/migration-001/PHASE-3-IMPLEMENTATION-STATUS.md">Phase 3 Status</a>
+ */
 public class HytaleHologramAccessor implements HologramAccessor {
-    private final Server server;
-    public HytaleHologramAccessor(Server server) { this.server = server; }
+    private final Object /* Server */ server;
+    public HytaleHologramAccessor(Object /* Server */ server) { this.server = server; }
     
     @Override 
     public UUID createHologram(LocationData location, String... lines) {
@@ -29,9 +36,9 @@ public class HytaleHologramAccessor implements HologramAccessor {
     @Override 
     public void updateHologram(UUID hologramId, String... lines) {
         // Since we don't know the world, we might have to search worlds or rely on global lookup if supported.
-        // Assuming Server has global entity lookup or we iterate worlds. 
+        // Assuming Object /* Server */ has global entity lookup or we iterate worlds. 
         // For simplicity/stub, let's assume we can find it via first world or we need to look it up.
-        // The SDK stub for Server doesn't have searching all worlds yet.
+        // The SDK stub for Object /* Server */ doesn't have searching all worlds yet.
         // BUT, usually accessor implementations are better if they know the context.
         // Let's assume server.getWorlds() exists or we just fail gracefully.
         
@@ -39,7 +46,7 @@ public class HytaleHologramAccessor implements HologramAccessor {
         // Or iterate.
         // Let's iterate if server allows.
         
-        Entity entity = findEntity(hologramId);
+        Object /* Entity */ entity = findEntity(hologramId);
         if (entity instanceof Hologram) {
             ((Hologram) entity).setLines(lines);
         }
@@ -47,7 +54,7 @@ public class HytaleHologramAccessor implements HologramAccessor {
 
     @Override 
     public void moveHologram(UUID hologramId, LocationData newLocation) {
-        Entity entity = findEntity(hologramId);
+        Object /* Entity */ entity = findEntity(hologramId);
         if (entity != null) {
              entity.teleport(LocationConverter.fromDTO(newLocation));
         }
@@ -55,19 +62,19 @@ public class HytaleHologramAccessor implements HologramAccessor {
 
     @Override 
     public void removeHologram(UUID hologramId) {
-        Entity entity = findEntity(hologramId);
+        Object /* Entity */ entity = findEntity(hologramId);
         if (entity != null) {
             entity.remove();
         }
     }
     
-    private Entity findEntity(UUID uuid) {
+    private Object /* Entity */ findEntity(UUID uuid) {
         // Naive iteration if server supports getting worlds, otherwise we are stuck.
-        // The SDK Server interface:
+        // The SDK Object /* Server */ interface:
         // collection<World> getWorlds();
-        // Let's check if Server has getWorlds()
+        // Let's check if Object /* Server */ has getWorlds()
         for (World world : server.getWorlds()) {
-            Entity e = world.getEntity(uuid);
+            Object /* Entity */ e = world.getEntity(uuid);
             if (e != null) return e;
         }
         return null;
