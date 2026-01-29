@@ -50,6 +50,9 @@ public class HytaleAdapterPlugin extends JavaPlugin {
             throw new RuntimeException("Critical setup failure", e);
         }
     }
+    
+    @Override
+    public void onDisable() {
         getLogger().info("Disabling Argonath Mods...");
         for (ArgonathMod mod : loadedMods) {
             try {
