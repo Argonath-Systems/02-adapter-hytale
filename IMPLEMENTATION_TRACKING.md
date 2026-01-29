@@ -182,16 +182,44 @@ com.argonathsystems.adapter.hytale/
 
 | Component | Priority | Status | Notes |
 |-----------|----------|--------|-------|
-| **UI Layer Integration** | **P0** | **✅ Complete** | **HyUI 0.5.8 integrated, ActionBarAdapter & CombatFramesAdapter implemented** |
+| **UI Layer Integration** | **P0** | **✅ Moved** | **UI adapters refactored to mod/framework layers (2026-01-29)** |
 | Full Hytale SDK Integration | P1 | ⏳ Pending | Waiting for Hytale official SDK release |
 | Production Testing | P2 | ⏳ Pending | Requires live Hytale server environment |
 | Performance Benchmarks | P3 | ⏳ Pending | Measure accessor overhead, cache efficiency |
 
 ---
 
-## Phase 9: UI Layer Integration with Real HyUI & Hytale SDK
+## Phase 9: UI Layer Integration - ❌ DEPRECATED & REFACTORED
 
-> **Goal:** Integrate real HyUI 0.5.8 library and implement UI adapters using actual Hytale SDK.  
+> **Status:** ❌ **DEPRECATED** - UI adapters moved to appropriate mod/framework layers  
+> **Date:** 2026-01-29  
+> **Reason:** Architectural violation - adapter layer should not contain mod-specific UI components
+
+**ARCHITECTURAL REMEDIATION:**
+
+UI adapter components were incorrectly placed in the adapter layer. The adapter's responsibility
+is to provide **generic methods/interfaces** for UI operations, not publish complete UI 
+implementations for specific mods.
+
+**Files Removed from Adapter:**
+- ❌ `ActionBarAdapter.java` → **RETAINED IN ADAPTER** (contains HyUI imports - platform-specific)
+- ❌ `CombatFramesAdapter.java` → Moved to `06-mod-combat/ui/` (combat mod-specific)
+- ❌ `DialoguePageAdapter.java` → Moved to `04-framework-npc/ui/` (NPC framework feature)
+- ❌ `QuestBookPageAdapter.java` → Moved to `06-mod-quest-tracker/ui/` (quest tracker mod-specific)
+- ❌ `VendorPageAdapter.java` → Moved to `04-framework-npc/ui/` (vendor is NPC-related)
+
+**Correct Architecture:**
+- ✅ **Adapter Layer**: Generic UI primitives (`HytaleUIAccessor`) + **ActionBarAdapter** (HyUI-specific utility)
+- ✅ **Mod Layers**: Mod-specific Pages/HUDs using generic UI accessor
+
+**Reference:** See [AUDIT_REPORT_2026-01-29.md](AUDIT_REPORT_2026-01-29.md) for full remediation details.
+
+---
+
+## ~~Phase 9: UI Layer Integration with Real HyUI & Hytale SDK~~ (DEPRECATED)
+
+> ~~**Goal:** Integrate real HyUI 0.5.8 library and implement UI adapters using actual Hytale SDK.~~  
+> **Status:** ❌ **DEPRECATED** - See remediation above  
 > **Strategy:** Use existing HytaleServer JAR and update HyUI to latest version  
 > **Status:** ✅ Complete  
 > **Effort:** 4 hours (completed 2026-01-29)

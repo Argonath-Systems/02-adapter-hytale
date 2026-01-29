@@ -10,11 +10,16 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Adapter for managing action bar UI elements using HyUI.
+ * Generic action bar HUD adapter for the Hytale platform.
  * Action bars are non-intrusive HUD elements displayed near the bottom of the player's screen.
  * 
  * <p><b>Thread Safety:</b> This adapter uses ConcurrentHashMap for thread-safe player tracking.
  * HUD operations should be executed on the world thread via world.execute().</p>
+ * 
+ * <p><b>Architectural Note:</b> This adapter remains in the adapter layer (not moved to framework)
+ * because it contains HyUI imports which are platform-specific. The adapter layer is the ONLY place
+ * for Hytale/HyUI platform dependencies. While this is a generic utility usable by multiple mods,
+ * it must stay in the adapter to maintain platform agnosticism in the framework layer.</p>
  * 
  * @since 2.1.0
  */

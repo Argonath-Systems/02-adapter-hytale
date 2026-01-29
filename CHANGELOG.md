@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **UI Adapter Components** - Refactored to appropriate mod/framework layers (2026-01-29)
+  - Removed `CombatFramesAdapter.java` → Moved to `06-mod-combat/ui/` (combat mod-specific)
+  - Removed `DialoguePageAdapter.java` → Moved to `04-framework-npc/ui/` (NPC framework feature)
+  - Removed `QuestBookPageAdapter.java` → Moved to `06-mod-quest-tracker/ui/` (quest tracker mod-specific)
+  - Removed `VendorPageAdapter.java` → Moved to `04-framework-npc/ui/` (vendor is NPC-related)
+  - **Retained `ActionBarAdapter.java`** - Contains HyUI imports, must stay in adapter layer (platform-specific)
+  - **Reason**: Architectural violation - adapter layer should provide generic UI primitives, not mod-specific UI implementations
+  - **Reference**: See [AUDIT_REPORT_2026-01-29.md](AUDIT_REPORT_2026-01-29.md) for full remediation details
+
 ## [2.1.0] - 2026-01-29
 
 ### Added

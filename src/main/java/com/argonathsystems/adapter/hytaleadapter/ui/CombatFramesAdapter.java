@@ -9,11 +9,16 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Adapter for managing combat frame UI elements using HyUI.
- * Combat frames are HUD elements displayed when a player enters combat mode.
+ * Combat frame UI adapter for the Hytale platform.
+ * Manages combat indicator HUD elements displayed when players enter combat mode.
  * 
  * <p><b>Thread Safety:</b> This adapter uses ConcurrentHashMap for thread-safe player tracking.
  * HUD operations should be executed on the world thread via world.execute().</p>
+ * 
+ * <p><b>Architectural Note:</b> This adapter remains in the adapter layer (not moved to combat mod)
+ * because it contains HyUI imports which are platform-specific. The adapter layer is the ONLY place
+ * for Hytale/HyUI platform dependencies. Combat mod should access this through the accessor pattern
+ * to maintain platform agnosticism.</p>
  * 
  * @since 2.1.0
  */
