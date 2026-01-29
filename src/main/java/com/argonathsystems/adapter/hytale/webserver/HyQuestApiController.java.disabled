@@ -1,9 +1,9 @@
 package com.argonathsystems.adapter.hytale.webserver;
 
 import com.argonathsystems.framework.webserver.*;
-import com.argonathsystems.hyquest.ApiClient;
-import com.argonathsystems.hyquest.ApiException;
-import com.argonathsystems.hyquest.api.QuestsApi;
+import com.argonathsystems.hyquest.client.ApiClient;
+import com.argonathsystems.hyquest.client.ApiException;
+import com.argonathsystems.hyquest.api.DefaultApi;
 import com.argonathsystems.hyquest.model.QuestDefinition;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -41,7 +41,7 @@ public class HyQuestApiController {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
     private final WebServerAccessor webServer;
-    private final QuestsApi questsApi;
+    private final DefaultApi questsApi;
     
     /**
      * Creates a new HyQuest API controller.
@@ -51,7 +51,7 @@ public class HyQuestApiController {
      */
     public HyQuestApiController(WebServerAccessor webServer, ApiClient apiClient) {
         this.webServer = webServer;
-        this.questsApi = new QuestsApi(apiClient);
+        this.questsApi = new DefaultApi(apiClient);
     }
     
     /**

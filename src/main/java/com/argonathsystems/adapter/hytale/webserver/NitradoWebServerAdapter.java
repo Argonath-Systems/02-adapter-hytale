@@ -1,11 +1,12 @@
 package com.argonathsystems.adapter.hytale.webserver;
 
 import com.argonathsystems.framework.webserver.*;
+import com.hypixel.hytale.server.core.plugin.PluginBase;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.nitrado.hytale.plugins.webserver.WebServerPlugin;
-import net.nitrado.hytale.plugins.webserver.auth.HytaleUserPrincipal;
+import net.nitrado.hytale.plugins.webserver.authentication.HytaleUserPrincipal;
 
 import java.io.IOException;
 import java.util.*;
@@ -31,7 +32,7 @@ public class NitradoWebServerAdapter implements WebServerAccessor {
     private static final Logger LOGGER = Logger.getLogger(NitradoWebServerAdapter.class.getName());
     
     private final WebServerPlugin nitradoPlugin;
-    private final Object pluginOwner;
+    private final PluginBase pluginOwner;
     private final String pluginGroup;
     private final String pluginName;
     private final Map<String, RegisteredRoute> routes = new ConcurrentHashMap<>();
@@ -46,7 +47,7 @@ public class NitradoWebServerAdapter implements WebServerAccessor {
      */
     public NitradoWebServerAdapter(
         WebServerPlugin nitradoPlugin,
-        Object pluginOwner,
+        PluginBase pluginOwner,
         String pluginGroup,
         String pluginName
     ) {
@@ -100,7 +101,7 @@ public class NitradoWebServerAdapter implements WebServerAccessor {
         routes.entrySet().removeIf(entry -> {
             if (entry.getValue().path.equals(path)) {
                 try {
-                    nitradoPlugin.removeServlet(pluginOwner, entry.getValue().servlet);
+                    nitradoPlugin.removeServlet(pluginOwner, path);
                     LOGGER.log(Level.INFO, "Unregistered route: {0}", path);
                     return true;
                 } catch (Exception e) {
@@ -114,7 +115,7 @@ public class NitradoWebServerAdapter implements WebServerAccessor {
     
     @Override
     public void unregisterAllRoutes(Object owner) {
-        if (owner != pluginOwner) {
+        if (!(owner instanceof PluginBase) || owner != pluginOwner) {
             LOGGER.log(Level.WARNING, "Attempted to unregister routes with different owner");
             return;
         }
