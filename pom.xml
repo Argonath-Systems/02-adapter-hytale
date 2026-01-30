@@ -70,6 +70,13 @@
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
         
+        <!-- Quest Designer Mod - For quest designer servlets and accessors -->
+        <dependency>
+            <groupId>com.argonathsystems.mod</groupId>
+            <artifactId>quest-designer</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        
         <!-- WebServer Framework - Platform-agnostic HTTP abstraction -->
         <dependency>
             <groupId>com.argonathsystems.framework</groupId>
