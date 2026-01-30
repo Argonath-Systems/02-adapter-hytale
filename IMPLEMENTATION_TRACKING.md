@@ -2,8 +2,34 @@
 
 > **Module**: `02-adapter-hytale`  
 > **Status**: ✅ MIGRATION-001 Phase 3 COMPLETE + HyUI Adapters Fixed  
-> **Last Updated**: 2026-01-30  
-> **Version**: 3.2.0-MIGRATION-001
+> **Last Updated**: 2026-01-31  
+> **Version**: 3.3.0-MIGRATION-001
+
+---
+
+## 🔧 Mount UI Adapters (2026-01-31)
+
+### HytaleModder Session - Mount Module UI Adapters
+
+**Session Date**: 2026-01-31  
+**Purpose**: Add HyUI adapters to bridge mount UI builders with HyUI rendering
+
+**Architecture Pattern (Option B - Framework Interfaces):**
+- Created 3 interfaces in `05-framework-ui` for proper dependency inversion
+- Mod layer builders implement framework interfaces
+- Adapter layer imports from framework, not mod layer
+- Correct dependency flow: Mod → Framework ← Adapter
+
+| Component | Type | Location | Status |
+|-----------|------|----------|--------|
+| `MountHUDDataProvider` | Interface | `05-framework-ui/.../hud/mount/` | ✅ |
+| `MountRadialDataProvider` | Interface | `05-framework-ui/.../hud/mount/` | ✅ |
+| `MountCollectionDataProvider` | Interface | `05-framework-ui/.../menu/mount/` | ✅ |
+| `MountHUDAdapter` | Adapter | `02-adapter-hytale/.../ui/` | ✅ |
+| `MountSummonRadialAdapter` | Adapter | `02-adapter-hytale/.../ui/` | ✅ |
+| `MountCollectionPageAdapter` | Adapter | `02-adapter-hytale/.../ui/` | ✅ |
+
+**Build Status**: ✅ BUILD SUCCESS
 
 ---
 
@@ -95,6 +121,9 @@
 | `QuestFormatConverter` | `integration/` | Converts between HyQuest API and framework Quest formats | Internal integration utility; covered by SF-QUEST-011 integration section |
 | `ActionBarAdapter` | `ui/` | HyUI HudBuilder wrapper for action bar | Platform-specific HyUI utility; retains HyUI imports that must stay in adapter layer |
 | `CombatFramesAdapter` | `ui/` | HyUI HudBuilder wrapper for combat frames | **REVIEW NEEDED**: May belong in 06-mod-combat; retained per HyUI import requirement |
+| `MountHUDAdapter` | `ui/` | HyUI HudBuilder wrapper for mount HUD | Bridges MountHUDBuilder (mod layer) to HyUI; implements VDD-MISC-011 |
+| `MountSummonRadialAdapter` | `ui/` | HyUI HudBuilder wrapper for mount summon radial | Bridges MountSummonRadialBuilder (mod layer) to HyUI; implements VDD-MISC-012 |
+| `MountCollectionPageAdapter` | `ui/` | HyUI PageBuilder wrapper for mount collection | Bridges MountCollectionPageBuilder (mod layer) to HyUI; implements VDD-MISC-029 |
 
 ### Orphans Requiring Specification
 
@@ -150,8 +179,8 @@ The Hytale Adapter is the **only module** that may import Hytale SDK classes. It
 | Accessor Impls | 18 | 18 | 100% |
 | Converters | 4 | 4 | 100% |
 | Integration Tests | 5 | 5 | 100% |
-| UI Adapters | 2 | 2 | 100% |
-| **Phase 1-8 Subtotal** | **32** | **32** | **100%** |
+| UI Adapters | 6 | 6 | 100% |
+| **Phase 1-8 Subtotal** | **36** | **36** | **100%** |
 | **SDK Stub Expansion (Phase 9)** | **0** | **17** | **0%** |
 | **Overall (Including Phase 9)** | **32** | **49** | **~65%** |
 
