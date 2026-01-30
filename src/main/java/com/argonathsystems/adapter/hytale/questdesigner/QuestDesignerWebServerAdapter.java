@@ -9,10 +9,8 @@ import com.argonathsystems.mod.questdesigner.validation.GraphValidator;
 import com.argonathsystems.mod.questdesigner.accessor.HytaleRegistryAccessor;
 import com.argonathsystems.mod.questdesigner.accessor.HytaleAssetAccessor;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
-import com.hypixel.hytale.server.core.registry.EntityRegistry;
-import com.hypixel.hytale.server.core.registry.ItemRegistry;
-import com.hypixel.hytale.server.core.asset.AssetManager;
 import jakarta.servlet.http.HttpServlet;
+import net.nitrado.hytale.plugins.webserver.IllegalPathSpecException;
 import net.nitrado.hytale.plugins.webserver.WebServerPlugin;
 
 import java.nio.file.Path;
@@ -95,15 +93,10 @@ public class QuestDesignerWebServerAdapter {
     /**
      * Initializes services and registers all servlets.
      * 
-     * @param itemRegistry Hytale item registry
-     * @param entityRegistry Hytale entity registry
-     * @param assetManager Hytale asset manager
+     * <p><b>STUB Implementation:</b> Uses stub accessors since Hytale SDK
+     * ItemRegistry/EntityRegistry/AssetManager are not available at expected packages.</p>
      */
-    public void initialize(
-        ItemRegistry itemRegistry,
-        EntityRegistry entityRegistry,
-        AssetManager assetManager
-    ) {
+    public void initialize() {
         LOGGER.log(Level.INFO, "Initializing Quest Designer Web Server Adapter");
         
         try {
@@ -111,13 +104,12 @@ public class QuestDesignerWebServerAdapter {
             questStorage = new FileQuestStorage(questStoragePath);
             LOGGER.log(Level.INFO, "Quest storage initialized at: {0}", questStoragePath);
             
-            // Initialize accessors
-            registryAccessor = new HytaleRegistryAccessorImpl(itemRegistry, entityRegistry);
-            assetAccessor = new HytaleAssetAccessorImpl(assetManager);
+            // Initialize accessors (stub mode - SDK classes not available)
+            registryAccessor = new HytaleRegistryAccessorImpl();
+            assetAccessor = new HytaleAssetAccessorImpl();
             
-            // Initialize service
-            GraphValidator graphValidator = new GraphValidator();
-            questService = new QuestDesignerServiceImpl(questStorage, graphValidator);
+            // Initialize service (GraphValidator is created internally)
+            questService = new QuestDesignerServiceImpl(questStorage);
             
             // Initialize and register servlets
             registerServlets();
@@ -141,8 +133,8 @@ public class QuestDesignerWebServerAdapter {
             staticFileServlet = new StaticFileServlet();
             registerServlet(URL_PREFIX + "/*", staticFileServlet);
 
-            // Quest API
-            questApiServlet = new QuestApiServlet(questService);
+            // Quest API - needs QuestStorage directly
+            questApiServlet = new QuestApiServlet(questStorage);
             registerServlet(API_V1_PREFIX + "/quests/*", questApiServlet);
             registerServlet(API_V1_PREFIX + "/validate", questApiServlet);
 
@@ -150,20 +142,26 @@ public class QuestDesignerWebServerAdapter {
             registryApiServlet = new RegistryApiServlet(registryAccessor);
             registerServlet(API_V1_PREFIX + "/registry/*", registryApiServlet);
 
-            // Configuration
-            configurationServlet = new ConfigurationServlet();
+            // Configuration - use parent of questStoragePath as config directory
+            Path configDir = questStoragePath.getParent();
+            if (configDir == null) {
+                configDir = questStoragePath;
+            }
+            configurationServlet = new ConfigurationServlet(configDir);
             registerServlet(API_V1_PREFIX + "/configuration", configurationServlet);
 
             // Asset serving
             assetServlet = new AssetServlet(assetAccessor);
             registerServlet(API_V1_PREFIX + "/assets/*", assetServlet);
 
-            // Debug endpoints
-            debugServlet = new DebugServlet(questService);
-            registerServlet(API_V1_PREFIX + "/debug/*", debugServlet);
+            // Debug endpoints - TODO: Requires HytalePlayerAccessor and HytaleQuestAccessor
+            // These are quest-designer specific accessors, not framework accessors
+            // Commenting out until proper integration is available
+            // debugServlet = new DebugServlet(playerAccessor, questAccessor);
+            // registerServlet(API_V1_PREFIX + "/debug/*", debugServlet);
 
-            // Status/health
-            statusServlet = new StatusServlet(questService);
+            // Status/health - needs QuestStorage and version
+            statusServlet = new StatusServlet(questStorage, "1.0.0-SNAPSHOT");
             registerServlet(API_V1_PREFIX + "/status", statusServlet);
 
             registered = true;
@@ -175,7 +173,7 @@ public class QuestDesignerWebServerAdapter {
         }
     }
 
-    private void registerServlet(String path, HttpServlet servlet) {
+    private void registerServlet(String path, HttpServlet servlet) throws IllegalPathSpecException {
         webServerPlugin.addServlet(ownerPlugin, path, servlet);
         LOGGER.log(Level.FINE, "Registered servlet: {0}", path);
     }

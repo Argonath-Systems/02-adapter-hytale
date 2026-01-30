@@ -2,8 +2,6 @@ package com.argonathsystems.adapter.hytale.questdesigner;
 
 import com.argonathsystems.mod.questdesigner.accessor.HytaleRegistryAccessor;
 import com.argonathsystems.mod.questdesigner.accessor.RegistryEntryDTO;
-import com.hypixel.hytale.server.core.registry.EntityRegistry;
-import com.hypixel.hytale.server.core.registry.ItemRegistry;
 
 import java.util.*;
 import java.util.logging.Level;
@@ -27,9 +25,6 @@ public class HytaleRegistryAccessorImpl implements HytaleRegistryAccessor {
 
     private static final Logger LOGGER = Logger.getLogger(HytaleRegistryAccessorImpl.class.getName());
 
-    private final ItemRegistry itemRegistry;
-    private final EntityRegistry entityRegistry;
-
     // Cache for registry entries (1 minute TTL)
     private volatile List<RegistryEntryDTO> cachedItems = null;
     private volatile List<RegistryEntryDTO> cachedEntities = null;
@@ -41,13 +36,11 @@ public class HytaleRegistryAccessorImpl implements HytaleRegistryAccessor {
     /**
      * Creates a new Hytale registry accessor.
      * 
-     * @param itemRegistry the Hytale item registry
-     * @param entityRegistry the Hytale entity registry
+     * <p><b>STUB Implementation:</b> Registry lookups use stub data until Hytale SDK
+     * provides stable ItemRegistry/EntityRegistry APIs (not currently available).</p>
      */
-    public HytaleRegistryAccessorImpl(ItemRegistry itemRegistry, EntityRegistry entityRegistry) {
-        this.itemRegistry = Objects.requireNonNull(itemRegistry, "itemRegistry cannot be null");
-        this.entityRegistry = Objects.requireNonNull(entityRegistry, "entityRegistry cannot be null");
-        LOGGER.log(Level.INFO, "Initialized Hytale Registry Accessor");
+    public HytaleRegistryAccessorImpl() {
+        LOGGER.log(Level.INFO, "Initialized Hytale Registry Accessor (stub mode)");
     }
 
     @Override

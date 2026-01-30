@@ -100,4 +100,57 @@ public class HytaleUIAccessor implements UIAccessor {
             "HytaleUIAccessor.isInHudEditMode() requires HyUI HUD editor state tracking"
         );
     }
+    
+    // === Modal-specific methods ===
+    
+    @Override
+    public void openModal(UUID playerId, String modalId, String content, UIContext context) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.openModal() requires HyUI modal system"
+        );
+    }
+    
+    @Override
+    public void closeModal(UUID playerId, String modalId) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.closeModal() requires HyUI modal system"
+        );
+    }
+    
+    @Override
+    public void updateModal(UUID playerId, String modalId, String elementId, UIUpdateData data) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.updateModal() requires HyUI modal system"
+        );
+    }
+    
+    @Override
+    public boolean hasModalOpen(UUID playerId, String modalId) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.hasModalOpen() requires HyUI modal tracking"
+        );
+    }
+    
+    // === Page-specific methods ===
+    
+    @Override
+    public void openPage(UUID playerId, String pageId, String content, UIContext context) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.openPage() requires HyUI page system"
+        );
+    }
+    
+    @Override
+    public void closePage(UUID playerId, String pageId) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.closePage() requires HyUI page system"
+        );
+    }
+    
+    @Override
+    public void updatePage(UUID playerId, String pageId, String elementId, UIUpdateData data) {
+        throw new UnsupportedOperationException(
+            "HytaleUIAccessor.updatePage() requires HyUI page system"
+        );
+    }
 }

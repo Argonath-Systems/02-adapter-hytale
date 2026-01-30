@@ -1,7 +1,6 @@
 package com.argonathsystems.adapter.hytale.questdesigner;
 
 import com.argonathsystems.mod.questdesigner.accessor.HytaleAssetAccessor;
-import com.hypixel.hytale.server.core.asset.AssetManager;
 
 import java.io.InputStream;
 import java.util.Optional;
@@ -25,16 +24,14 @@ public class HytaleAssetAccessorImpl implements HytaleAssetAccessor {
 
     private static final Logger LOGGER = Logger.getLogger(HytaleAssetAccessorImpl.class.getName());
 
-    private final AssetManager assetManager;
-
     /**
      * Creates a new Hytale asset accessor.
      * 
-     * @param assetManager the Hytale asset manager
+     * <p><b>STUB Implementation:</b> Asset loading uses classpath fallback until
+     * Hytale SDK provides stable AssetManager API (not currently available at expected package).</p>
      */
-    public HytaleAssetAccessorImpl(AssetManager assetManager) {
-        this.assetManager = assetManager;
-        LOGGER.log(Level.INFO, "Initialized Hytale Asset Accessor");
+    public HytaleAssetAccessorImpl() {
+        LOGGER.log(Level.INFO, "Initialized Hytale Asset Accessor (stub mode)");
     }
 
     @Override

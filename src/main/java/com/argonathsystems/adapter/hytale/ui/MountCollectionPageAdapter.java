@@ -110,7 +110,7 @@ public class MountCollectionPageAdapter {
             
             PageBuilder.pageForPlayer(player)
                 .fromHtml(processedHtml)
-                .open();
+                .open(store);
             
             activePlayers.add(player);
             LOGGER.fine("Mount collection page shown for player: " + player.getUsername());

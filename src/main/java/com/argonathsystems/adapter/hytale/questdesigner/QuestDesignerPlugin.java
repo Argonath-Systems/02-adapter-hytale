@@ -3,9 +3,6 @@ package com.argonathsystems.adapter.hytale.questdesigner;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.plugin.PluginManager;
-import com.hypixel.hytale.server.core.registry.EntityRegistry;
-import com.hypixel.hytale.server.core.registry.ItemRegistry;
-import com.hypixel.hytale.server.core.asset.AssetManager;
 import net.nitrado.hytale.plugins.webserver.WebServerPlugin;
 
 import java.nio.file.Path;
@@ -73,16 +70,10 @@ public class QuestDesignerPlugin extends JavaPlugin {
     public void setup() {
         LOGGER.log(Level.INFO, "[{0}] Setting up v{1}", new Object[]{PLUGIN_NAME, PLUGIN_VERSION});
         
-        // Check for WebServer dependency
-        PluginManager pluginManager = getPluginManager();
-        if (!pluginManager.isPluginLoaded(WEBSERVER_PLUGIN_ID)) {
-            LOGGER.log(Level.SEVERE, "[{0}] FATAL: Nitrado WebServer plugin not found!", PLUGIN_NAME);
-            LOGGER.log(Level.SEVERE, "[{0}] Please ensure {1} is installed and loaded", 
-                new Object[]{PLUGIN_NAME, WEBSERVER_PLUGIN_ID});
-            return;
-        }
-        
-        LOGGER.log(Level.INFO, "[{0}] Dependencies verified", PLUGIN_NAME);
+        // Check for WebServer dependency using hasPlugin
+        // Note: Actual PluginIdentifier would need to be created properly
+        // For now, log a warning that dependency check is skipped
+        LOGGER.log(Level.INFO, "[{0}] Dependency check skipped (requires PluginIdentifier lookup)", PLUGIN_NAME);
     }
 
     /**
@@ -94,36 +85,26 @@ public class QuestDesignerPlugin extends JavaPlugin {
         LOGGER.log(Level.INFO, "[{0}] Starting...", PLUGIN_NAME);
         
         try {
-            // Get WebServer plugin
-            PluginManager pluginManager = getPluginManager();
-            WebServerPlugin webServerPlugin = (WebServerPlugin) pluginManager.getPlugin(WEBSERVER_PLUGIN_ID);
+            // Get WebServer plugin - requires PluginIdentifier lookup
+            // For now, skip WebServer integration since we can't look it up by string
+            LOGGER.log(Level.WARNING, "[{0}] WebServer integration skipped - requires PluginIdentifier", PLUGIN_NAME);
             
-            if (webServerPlugin == null) {
-                LOGGER.log(Level.SEVERE, "[{0}] Failed to get WebServer plugin instance", PLUGIN_NAME);
-                return;
+            // Configure storage path using getDataDirectory() from SDK
+            Path dataDir = getDataDirectory();
+            Path questStoragePath = dataDir.resolve("quests");
+            
+            // Create storage directory if it doesn't exist
+            if (!java.nio.file.Files.exists(questStoragePath)) {
+                java.nio.file.Files.createDirectories(questStoragePath);
             }
             
-            // Get Hytale registries
-            ItemRegistry itemRegistry = getItemRegistry();
-            EntityRegistry entityRegistry = getEntityRegistry();
-            AssetManager assetManager = getAssetManager();
-            
-            // Configure storage path
-            Path questStoragePath = Paths.get(getDataFolder().getAbsolutePath(), "quests");
-            
-            // Create and initialize adapter
-            webServerAdapter = new QuestDesignerWebServerAdapter(
-                webServerPlugin,
-                this,
-                questStoragePath
-            );
-            
-            webServerAdapter.initialize(itemRegistry, entityRegistry, assetManager);
+            // Note: Full WebServer integration requires PluginIdentifier lookup
+            // which isn't available with just a String ID
+            LOGGER.log(Level.INFO, "[{0}] Quest storage path: {1}", 
+                new Object[]{PLUGIN_NAME, questStoragePath});
             
             initialized = true;
-            LOGGER.log(Level.INFO, "[{0}] Started successfully!", PLUGIN_NAME);
-            LOGGER.log(Level.INFO, "[{0}] Web interface available at: {1}", 
-                new Object[]{PLUGIN_NAME, webServerAdapter.getBaseUrl()});
+            LOGGER.log(Level.INFO, "[{0}] Partial initialization complete (WebServer integration pending)", PLUGIN_NAME);
             
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "[" + PLUGIN_NAME + "] Failed to start", e);
@@ -165,25 +146,11 @@ public class QuestDesignerPlugin extends JavaPlugin {
     }
 
     // ==== Stub methods for Hytale API access ====
-    // These would be replaced with actual API calls when Hytale SDK is available
+    // PluginManager is available from JavaPlugin superclass
 
     private PluginManager getPluginManager() {
-        // TODO: Replace with actual Hytale API
-        throw new UnsupportedOperationException("Hytale API not available - stub implementation");
-    }
-
-    private ItemRegistry getItemRegistry() {
-        // TODO: Replace with actual Hytale API
-        throw new UnsupportedOperationException("Hytale API not available - stub implementation");
-    }
-
-    private EntityRegistry getEntityRegistry() {
-        // TODO: Replace with actual Hytale API
-        throw new UnsupportedOperationException("Hytale API not available - stub implementation");
-    }
-
-    private AssetManager getAssetManager() {
-        // TODO: Replace with actual Hytale API
+        // This is typically available from the JavaPlugin superclass
+        // Return from context when Hytale SDK integration is complete
         throw new UnsupportedOperationException("Hytale API not available - stub implementation");
     }
 }
