@@ -101,4 +101,75 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
             "HytaleNPCEntityAccessor.getMetadata() requires official Hytale SDK Entity metadata system"
         );
     }
+    
+    // ========================================================================
+    // Mount/Riding Operations - Using Hytale's builtin.mounts ECS components
+    // See: com.hypixel.hytale.builtin.mounts.MountedComponent
+    // See: com.hypixel.hytale.builtin.mounts.MountedByComponent
+    // See: com.hypixel.hytale.builtin.mounts.NPCMountComponent
+    // ========================================================================
+    
+    @Override
+    public boolean mountEntity(UUID riderId, UUID mountId) {
+        // TODO: Implement using Hytale SDK when import paths are resolved
+        // Implementation will use:
+        // 1. Get rider entity and mount entity by UUID from EntityStore
+        // 2. Create MountedComponent for rider with mount reference
+        // 3. Add/update MountedByComponent on mount with rider as passenger
+        // 4. Use MountInteraction for proper mounting flow
+        //
+        // Example pattern from SDK javadoc:
+        // MountedComponent mounted = new MountedComponent(
+        //     mountRef, 
+        //     new Vector3f(0, 0, 0),  // attachment offset
+        //     MountController.RIDE    // controller type
+        // );
+        // riderEntity.addComponent(mounted);
+        throw new UnsupportedOperationException(
+            "HytaleNPCEntityAccessor.mountEntity() - Implementation pending SDK import configuration. " +
+            "Uses: MountedComponent, MountedByComponent, MountInteraction"
+        );
+    }
+    
+    @Override
+    public boolean dismountEntity(UUID riderId) {
+        // TODO: Implement using Hytale SDK
+        // Implementation will:
+        // 1. Get rider entity and check for MountedComponent
+        // 2. Get mount entity from MountedComponent.getMountedToEntity()
+        // 3. Remove MountedComponent from rider
+        // 4. Remove rider from mount's MountedByComponent passengers list
+        throw new UnsupportedOperationException(
+            "HytaleNPCEntityAccessor.dismountEntity() - Implementation pending SDK import configuration. " +
+            "Uses: MountedComponent removal, MountedByComponent.removePassenger()"
+        );
+    }
+    
+    @Override
+    public Optional<UUID> getMountedEntity(UUID riderId) {
+        // TODO: Implement using Hytale SDK
+        // Implementation will:
+        // 1. Get entity by UUID from EntityStore
+        // 2. Check if entity has MountedComponent
+        // 3. If yes, get mount reference from MountedComponent.getMountedToEntity()
+        // 4. Return mount entity's UUID
+        throw new UnsupportedOperationException(
+            "HytaleNPCEntityAccessor.getMountedEntity() - Implementation pending SDK import configuration. " +
+            "Uses: MountedComponent.getMountedToEntity()"
+        );
+    }
+    
+    @Override
+    public Collection<UUID> getPassengers(UUID mountId) {
+        // TODO: Implement using Hytale SDK
+        // Implementation will:
+        // 1. Get mount entity by UUID from EntityStore
+        // 2. Check if entity has MountedByComponent
+        // 3. Get all passengers from MountedByComponent.getPassengers()
+        // 4. Convert entity references to UUIDs
+        throw new UnsupportedOperationException(
+            "HytaleNPCEntityAccessor.getPassengers() - Implementation pending SDK import configuration. " +
+            "Uses: MountedByComponent.getPassengers()"
+        );
+    }
 }

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Mount/Riding Operations** in `HytaleNPCEntityAccessor`:
+  - `mountEntity()` - Stub implementation referencing `MountedComponent`, `MountedByComponent`
+  - `dismountEntity()` - Stub implementation with SDK component references
+  - `getMountedEntity()` - Stub implementation using `MountedComponent.getMountedToEntity()`
+  - `getPassengers()` - Stub implementation using `MountedByComponent.getPassengers()`
+  - Documentation references Hytale SDK: `com.hypixel.hytale.builtin.mounts.*`
+
 ## [3.2.0] - 2026-01-30
 
 ### Added - Session 8: Full UI Adapter Implementation
