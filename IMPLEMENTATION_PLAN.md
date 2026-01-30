@@ -360,6 +360,120 @@ grep -rn "return null;" src/main/java/
 
 ---
 
+## Phase 5: SDK Stub Implementation [READY]
+
+**SDK Research Completed**: 2026-01-30  
+**Reference Document**: `docs/SDK_PATTERNS.md`
+
+### Research Findings Summary
+
+| API Area | Risk Level | Status |
+|----------|------------|--------|
+| Entity Stats (Health, Damage, Heal) | 🟢 LOW | `DefaultEntityStatTypes.getHealth()`, `EntityStatMap.subtractStatValue()` verified |
+| Mount System | 🟢 LOW | `MountedComponent`, `MountedByComponent` verified |
+| Entity Iteration | 🟢 LOW | `Store.forEachChunk()` verified |
+| Entity Lifecycle | 🟢 LOW | `AddReason.SPAWN`, `RemoveReason.REMOVE` verified |
+| Damage System | 🟢 LOW | `Damage` class, `DamageCause` constants verified |
+| Block Operations | � LOW | `WorldChunk.getBlock()`, `WorldChunk.setBlock()` verified |
+| Biome Lookup | 🔴 HIGH | No direct `getBiomeAt()` API found |
+| Pathfinding | 🔴 HIGH | No public pathfinding API found |
+| Zone/Region API | 🔴 HIGH | Not found |
+
+### Implementation Batches
+
+#### Batch 5.1: Entity Stats (LOW RISK) ✅ COMPLETE [2026-01-31]
+| Task | Method | Pattern | Status |
+|------|--------|---------|--------|
+| P5.1-001 | `damage(UUID, int)` | `EntityStatMap.subtractStatValue(DefaultEntityStatTypes.getHealth(), amount)` | ✅ |
+| P5.1-002 | `heal(UUID, int)` | `EntityStatMap.addStatValue(DefaultEntityStatTypes.getHealth(), amount)` | ✅ |
+| P5.1-003 | Add health to `EntityData` | `EntityStatMap.get(healthIndex).get()` | ✅ |
+
+#### Batch 5.2: Entity Iteration (LOW RISK) ✅ COMPLETE [2026-01-31]
+| Task | Method | Pattern | Status |
+|------|--------|---------|--------|
+| P5.2-001 | `getEntities(worldName)` | `store.forEachChunk()` + `chunk.getReferenceTo(i)` | ✅ |
+| P5.2-002 | `getEntitiesNear(location, radius)` | Iterate + TransformComponent distance filter | ✅ |
+
+#### Batch 5.3: Mount Operations (LOW RISK) ✅ COMPLETE [2026-01-31]
+| Task | Method | Pattern | Status |
+|------|--------|---------|--------|
+| P5.3-001 | `getMountedEntity(riderId)` | `MountedComponent.getMountedToEntity()` | ✅ |
+| P5.3-002 | `getPassengers(mountId)` | `MountedByComponent.getPassengers()` | ✅ |
+| P5.3-003 | `mountEntity(riderId, mountId)` | Add `MountedComponent` to rider + `MountedByComponent.addPassenger()` | ✅ |
+| P5.3-004 | `dismountEntity(riderId)` | `Store.removeComponentIfExists()` + `MountedByComponent.removePassenger()` | ✅ |
+
+#### Batch 5.4: Entity Spawning (MEDIUM RISK) ✅ COMPLETE [2026-01-31]
+| Task | Method | Pattern | Status |
+|------|--------|---------|--------|
+| P5.4-001 | `spawnEntity(type, location)` | `NPCPlugin.spawnNPC(store, role, variant, position, rotation)` | ✅ |
+
+#### Batch 5.5: Block Operations (MEDIUM RISK) ✅ COMPLETE [2026-01-31]
+| Task | Method | Pattern | Status |
+|------|--------|---------|--------|
+| P5.5-001 | `getBlockType(location)` | `WorldChunk.getBlock(localX, localY, localZ)` | ✅ |
+| P5.5-002 | `setBlock(location, type)` | `WorldChunk.setBlock(localX, localY, localZ, blockId, blockType, flags, metaFlags, filler)` | ✅ |
+| P5.5-003 | `getHighestBlock(x, z)` | `WorldChunk.getHeight(localX, localZ)` | ⏳ Deferred |
+
+#### Batch 5.6: Weather API (MEDIUM-HIGH RISK) ✅ COMPLETE [2026-01-31]
+| Task | Method | Pattern | Status |
+|------|--------|---------|--------|
+| P5.6-001 | `hasWeather()` | `WeatherResource.getForcedWeatherIndex()` via Store.getResource() | ✅ |
+
+**Research Complete**: See `HIGH_RISK_API_RESEARCH.md`
+- Entry point: `WeatherPlugin.get()`
+- Per-player tracking: `WeatherTracker.getWeatherIndex()`
+- World resource: `WeatherResource.setForcedWeather(String)`
+- Access pattern: `world.getEntityStore().getStore().getResource(resourceType)`
+
+#### Deferred (HIGH RISK - Complex Integration Required)
+| Method | Risk | SDK API Found | Notes |
+|--------|------|---------------|-------|
+| `navigateTo(entityId, target)` | 🔴 VERY HIGH | ✅ Yes | AStarWithTarget, PathFollower, MotionController - requires tick-based async computation |
+| `getBiomeAt(location)` | 🟠 HIGH | ✅ Partial | BiomeType, BiomeInterpolation - may be gen-time only |
+| `getZoneAt(location)` | 🟠 HIGH | ⚠️ Custom | WorldMapManager for POIs - zone concept may be Argonath-custom |
+
+**HIGH RISK API Research Document**: `HIGH_RISK_API_RESEARCH.md` (2026-01-31)
+
+##### Pathfinding API Summary
+```java
+// Pattern discovered from SDK research:
+AStarWithTarget.initComputePath(entityRef, start, target, evaluator, motionController, probeMoveData, nodePoolProvider, accessor);
+PathFollower.setPath(waypoint, position);
+PathFollower.executePath(position, motionController, steering);
+// Requires: MotionControllerWalk/Fly/Dive matching entity type
+```
+
+##### Biome API Summary
+```java
+// BiomeType interface provides:
+BiomeType.getBiomeName();
+BiomeType.getTerrainDensity();
+// Access via BiomeInterpolation or ChunkGeneratorCache - needs investigation
+```
+
+##### Zone/Region API Summary
+```java
+// WorldMapManager provides:
+WorldMapManager.getPointsOfInterest(); // Map<String, MapMarker>
+WorldMapManager.addMarkerProvider(id, provider);
+// Zone/Region likely requires custom Argonath implementation via 04-framework-protection
+```
+
+### Phase 5 Summary
+- **Started**: 2026-01-30 (Research)
+- **Completed**: 2026-01-31 (Implementation)
+- **Methods Implemented**: 13 (12 entity/block + 1 weather)
+- **Methods Deferred**: 4 (HIGH RISK: navigateTo, getBiomeAt, getZoneAt)
+- **Build Status**: ✅ Compiles successfully
+- **Research Document**: `HIGH_RISK_API_RESEARCH.md`
+
+### Prerequisites for Phase 5
+1. ✅ SDK research complete (see `docs/SDK_PATTERNS.md`)
+2. ✅ Build passes (`just build 02-adapter-hytale`)
+3. ⏳ Hytale server available for runtime testing
+
+---
+
 ## Appendix: File Inventory
 
 ### Source Files (33 total)

@@ -225,7 +225,7 @@ public class HytaleGuildAccessor implements GuildAccessor {
     @Override
     public List<Object> getRanks(UUID guildId) {
         // Return predefined ranks as a list - this is valid for in-memory impl
-        return Arrays.asList(GuildRank.values());
+        return Arrays.asList((Object[]) GuildRank.values());
     }
 
     @Override

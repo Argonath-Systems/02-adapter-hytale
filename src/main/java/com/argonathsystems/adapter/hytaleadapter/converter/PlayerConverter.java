@@ -11,6 +11,13 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
  * 
  * <p><b>MIGRATION-001 Status:</b> ✅ IMPLEMENTED</p>
  * 
+ * <p><b>Deprecation Notes (2026-01-30):</b></p>
+ * <p>Uses deprecated SDK methods in Player entity:</p>
+ * <ul>
+ *   <li>{@code player.getUuid()} → Use ECS pattern: {@code player.getReference()} + ComponentAccessor</li>
+ * </ul>
+ * <p>Migration requires access to Store&lt;EntityStore&gt; and ComponentAccessor patterns.</p>
+ * 
  * <p>SDK Classes Used:</p>
  * <ul>
  *   <li>{@code PlayerRef} - Player reference with getUuid(), getUsername()</li>
@@ -83,7 +90,10 @@ public class PlayerConverter {
     /**
      * Convert Player entity to PlayerData DTO.
      * Attempts to read health from EntityStatMap component.
+     * 
+     * <p>Note: Uses deprecated player.getUuid() - migrate to ECS pattern when available.</p>
      */
+    @SuppressWarnings("removal")
     private static PlayerData playerToDTO(Player player) {
         java.util.UUID uuid = player.getUuid();
         String displayName = player.getDisplayName();

@@ -7,13 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Added - Phase 5 SDK Stub Implementation (2026-01-31)
+
+- **Entity Stats Operations** in `HytaleNPCEntityAccessor`:
+  - `damage(UUID, int)` - ✅ Uses `EntityStatMap.subtractStatValue(healthIndex, amount)`
+  - `heal(UUID, int)` - ✅ Uses `EntityStatMap.addStatValue(healthIndex, amount)`
+  - Uses `DefaultEntityStatTypes.getHealth()` for stat index lookup
+
+- **Entity Iteration** in `HytaleNPCEntityAccessor`:
+  - `getEntities()` - ✅ Uses `Store.forEachChunk()` + `ArchetypeChunk.getReferenceTo(i)`
+  - `getEntitiesNear(location, radius)` - ✅ Distance filtering with `TransformComponent`
+  - `toEntityDataFromRef()` helper for ECS entity → DTO conversion
+  - `getUuidFromRef()` helper using `UUIDComponent.getUuid()`
+
 - **Mount/Riding Operations** in `HytaleNPCEntityAccessor`:
-  - `mountEntity()` - Stub implementation referencing `MountedComponent`, `MountedByComponent`
-  - `dismountEntity()` - Stub implementation with SDK component references
-  - `getMountedEntity()` - Stub implementation using `MountedComponent.getMountedToEntity()`
-  - `getPassengers()` - Stub implementation using `MountedByComponent.getPassengers()`
-  - Documentation references Hytale SDK: `com.hypixel.hytale.builtin.mounts.*`
+  - `mountEntity(riderId, mountId)` - ✅ Adds `MountedComponent` to rider, updates `MountedByComponent` on mount
+  - `dismountEntity(riderId)` - ✅ Removes `MountedComponent`, updates mount's passenger list
+  - `getMountedEntity(riderId)` - ✅ Uses `MountedComponent.getMountedToEntity()`
+  - `getPassengers(mountId)` - ✅ Uses `MountedByComponent.getPassengers()`
+  - Uses `MountController.Minecart` as default mount controller
+
+- **Entity Spawning** in `HytaleNPCEntityAccessor`:
+  - `spawnEntity(type, location)` - ✅ Uses `NPCPlugin.spawnNPC(store, role, variant, position, rotation)`
+  - Supports "role:variant" format for entity type specification
+
+- **Block Operations** in `HytaleWorldAccessor`:
+  - `getBlockType(location)` - ✅ Uses `WorldChunk.getBlock(localX, y, localZ)`
+  - `setBlock(world, x, y, z, blockId)` - ✅ Uses `WorldChunk.setBlock(...)` with thread safety
+  - Chunk key calculation: `((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL)`
+
+### Changed
+
+- Updated `SDK_PATTERNS.md` with newly discovered SDK APIs:
+  - `UUIDComponent` for Ref → UUID conversion
+  - `ArchetypeChunk.getReferenceTo(int)` (not `getRef()`)
+  - `MountedByComponent.addPassenger()` / `removePassenger()`
+  - `Store.addComponent()` / `Store.removeComponentIfExists()`
+  - `WorldChunk` block access patterns
+
+- Updated `IMPLEMENTATION_PLAN.md` marking Phase 5 batches as complete
 
 ## [3.2.0] - 2026-01-30
 

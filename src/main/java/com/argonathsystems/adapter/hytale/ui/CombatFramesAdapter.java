@@ -46,6 +46,7 @@ import java.util.logging.Logger;
  * @since 1.1.0
  * @see CombatFramesBuilder
  */
+@SuppressWarnings("deprecation") // HyUI TemplateProcessor may have deprecated methods
 public class CombatFramesAdapter {
     
     private static final Logger LOGGER = Logger.getLogger(CombatFramesAdapter.class.getName());

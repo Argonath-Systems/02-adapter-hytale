@@ -89,6 +89,13 @@ public class HytaleCommandAccessor implements CommandAccessor {
         }
         
         @Override
+        public String getName() {
+            // Explicitly override to ensure name is returned correctly
+            // This works around potential ASM compatibility issues with Java 25
+            return commandName;
+        }
+        
+        @Override
         protected CompletableFuture<Void> execute(CommandContext context) {
             // Convert Hytale context to our platform-agnostic format
             String[] args = parseArgs(context);

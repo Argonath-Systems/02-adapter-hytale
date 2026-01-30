@@ -53,6 +53,7 @@ import java.util.logging.Logger;
  * @since 1.0.0
  * @see <a href="VDD-MISC-011-world-003-mount-hud.md">VDD-MISC-011: Mount HUD</a>
  */
+@SuppressWarnings("deprecation") // HyUI TemplateProcessor may have deprecated methods
 public class MountHUDAdapter {
     
     private static final Logger LOGGER = Logger.getLogger(MountHUDAdapter.class.getName());
