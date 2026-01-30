@@ -1,9 +1,32 @@
 # Hytale Adapter - Implementation Tracking
 
 > **Module**: `02-adapter-hytale`  
-> **Status**: ✅ MIGRATION-001 Phase 3 COMPLETE + Critical Fixes Applied  
-> **Last Updated**: 2026-01-29  
-> **Version**: 3.1.0-MIGRATION-001
+> **Status**: ✅ MIGRATION-001 Phase 3 COMPLETE + HyUI Adapters Fixed  
+> **Last Updated**: 2026-01-30  
+> **Version**: 3.2.0-MIGRATION-001
+
+---
+
+## 🔧 HyUI Adapter Fixes (2026-01-30)
+
+### HytaleModder Session - HyUI API Compliance
+
+**Session Date**: 2026-01-30  
+**Issue**: HUD adapters using incorrect HyUI API methods
+
+| Adapter | Issue | Resolution | Status |
+|---------|-------|------------|--------|
+| `CombatFramesAdapter` | Used non-existent `HyUIHud` type, wrong API | Rewritten with `Set<PlayerRef>` tracking, `.show(store)` | ✅ |
+| `CompassBarAdapter` | Variable name collision, wrong API | Rewritten with proper parameter naming | ✅ |
+| `ActionBarAdapter` | Already correct | No changes needed | ✅ |
+
+**HyUI API Corrections:**
+- Use `HudBuilder.hudForPlayer(player).fromHtml(html).show(store)` (not `.open()`)
+- HyUI's Multi-HUD system manages HUD lifecycle automatically
+- No need to track HUD instances - just track player states
+- Use `Set<PlayerRef>` instead of `Map<PlayerRef, HudBuilder>` for simpler tracking
+
+**Build Status**: ✅ BUILD SUCCESS
 
 ---
 

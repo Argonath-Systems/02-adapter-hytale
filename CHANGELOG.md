@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-01-30
+
+### Added - Session 8: Full UI Adapter Implementation
+
+- **UI Adapters Restored & Enhanced** (`com.argonathsystems.adapter.hytale.ui`):
+  - `QuestBookPageAdapter.java`: Quest book page rendering with category tabs
+    - Template caching, hot reload support, template processor integration
+    - `showQuestBook()`, `updateQuestBook()`, `closeQuestBook()` methods
+  - `VendorPageAdapter.java`: Vendor UI rendering with buy/sell operations
+    - Event handling for item selection, quantity changes, transactions
+    - `openVendor()`, `updateVendor()`, `closeVendor()` methods
+  - `ActionBarAdapter.java`: Action bar HUD rendering (**Enhanced**)
+    - Uses `Set<PlayerRef>` for simple state tracking
+    - Corrected HyUI API: `HudBuilder.hudForPlayer(player).fromHtml(html).show(store)`
+  - `CombatFramesAdapter.java`: Combat frames HUD rendering (**Restored**)
+    - Player frame, target frame, party frames support
+    - Uses HyUI Multi-HUD system for lifecycle management
+  - `CompassBarAdapter.java`: Compass bar HUD rendering (**New**)
+    - Skyrim-style compass with heading and markers
+    - High-frequency update support with template caching
+
+### Changed
+
+- **HyUI API Pattern Established**:
+  - All HUD adapters now use `HudBuilder.hudForPlayer(player).fromHtml(html).show(store)`
+  - `show()` does not return a HUD instance - HyUI Multi-HUD system manages lifecycle
+  - Removed `open()` calls (deprecated pattern)
+  - Changed from `Map<PlayerRef, HudBuilder>` to `Set<PlayerRef>` for tracking
+
+### Fixed
+
+- **HyUI API Compliance**: All adapters now use correct HyUI 0.5.8 API
+  - Removed non-existent `HyUIHud` class references
+  - Removed invalid `hud.remove()` calls (Multi-HUD handles cleanup)
+  - Fixed variable name collisions in adapter methods
+
+### Progress
+- UI Adapters: 1 → 5 (ActionBar, CombatFrames, CompassBar, QuestBook, Vendor)
+- All adapters compile successfully with `mvn clean compile`
+
+---
+
+## [3.1.0] - 2026-01-29
+
 ### Removed
 - **UI Adapter Components** - Refactored to appropriate mod/framework layers (2026-01-29)
   - Removed `CombatFramesAdapter.java` → Moved to `06-mod-combat/ui/` (combat mod-specific)
