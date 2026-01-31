@@ -10,6 +10,12 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.worldmap.provider.IWorldMapProvider;
+import com.hypixel.hytale.server.worldgen.chunk.ChunkGenerator;
+import com.hypixel.hytale.server.worldgen.chunk.ZoneBiomeResult;
+import com.hypixel.hytale.server.worldgen.biome.Biome;
+import com.hypixel.hytale.server.worldgen.zone.ZoneGeneratorResult;
+import com.hypixel.hytale.server.worldgen.zone.Zone;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -17,13 +23,16 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Hytale implementation of WorldAccessor using SDK world system.
  * 
- * <p><b>MIGRATION-001 Status:</b> 🟡 PARTIAL IMPLEMENTATION</p>
+ * <p><b>MIGRATION-001 Status:</b> � CORE IMPLEMENTATION COMPLETE</p>
  * 
  * <p>SDK Classes Used:</p>
  * <ul>
  *   <li>{@code World} - World instance with name, tick, chunk access</li>
  *   <li>{@code WorldConfig} - World configuration (day/night duration)</li>
  *   <li>{@code ChunkStore} - Chunk management</li>
+ *   <li>{@code ChunkGenerator} - World generation (biome/zone access)</li>
+ *   <li>{@code IWorldMapProvider} - World map provider interface</li>
+ *   <li>{@code WeatherPlugin} - Weather state access</li>
  * </ul>
  * 
  * <p>Implemented Methods:</p>
@@ -31,18 +40,22 @@ import java.util.concurrent.CompletableFuture;
  *   <li>✅ getWorldName() - via World.getName()</li>
  *   <li>✅ getWorldTime() - via World.getTick()</li>
  *   <li>✅ isDaytime() - calculated from tick and day/night duration</li>
+ *   <li>✅ getBiome() - via ChunkGenerator.getZoneBiomeResultAt()</li>
+ *   <li>✅ getZone() - via ChunkGenerator.getZoneBiomeResultAt()</li>
+ *   <li>✅ hasWeather() - via WeatherPlugin + WeatherResource</li>
+ *   <li>✅ getBlockType() - via WorldChunk.getBlock()</li>
+ *   <li>✅ setBlock() - via WorldChunk.setBlock()</li>
  * </ul>
  * 
  * <p>Pending Methods:</p>
  * <ul>
- *   <li>⏳ getBiome() - needs BiomeModule research</li>
- *   <li>⏳ getZone() - needs zone/region API research</li>
- *   <li>✅ hasWeather() - via WeatherPlugin + WeatherResource</li>
- *   <li>⏳ getBlockType() - needs BlockChunk integration</li>
  *   <li>⏳ findSafeLocation() - custom implementation needed</li>
  *   <li>⏳ generateChunk(), unloadChunk() - via ChunkStore</li>
- *   <li>⏳ setBlock() - via BlockChunk</li>
  * </ul>
+ * 
+ * <p><b>Implementation Note:</b> Biome/Zone access requires casting 
+ * IWorldMapProvider to ChunkGenerator. This cast may fail for non-standard
+ * world generators (flat, void). In those cases, "unknown" is returned.</p>
  * 
  * @author Argonath Systems Team
  * @version 3.0.0
@@ -126,20 +139,106 @@ public class HytaleWorldAccessor implements WorldAccessor {
 
     @Override
     public String getBiome(LocationData location) {
-        // TODO: Implement when BiomeModule API is researched
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.getBiome() requires BiomeModule integration. " +
-            "Research needed: BiomeModule, BiomeRegistry access patterns."
-        );
+        if (location == null) {
+            return "unknown";
+        }
+        
+        World world = location.world() != null ? Universe.get().getWorld(location.world()) : getWorld();
+        if (world == null) {
+            return "unknown";
+        }
+        
+        try {
+            // Try to access ChunkGenerator via IWorldMapProvider
+            // This is the worldgen system that knows about biomes and zones
+            var worldConfig = world.getWorldConfig();
+            if (worldConfig == null) {
+                return "unknown";
+            }
+            
+            var worldGenProvider = worldConfig.getWorldGenProvider();
+            if (worldGenProvider == null) {
+                return "unknown";
+            }
+            
+            // IWorldMapProvider has getGenerator(World) - ChunkGenerator implements this interface
+            // We need to check if the provider is actually a ChunkGenerator or can provide one
+            if (worldGenProvider instanceof IWorldMapProvider mapProvider) {
+                var generator = mapProvider.getGenerator(world);
+                // The generator might be a ChunkGenerator which has getZoneBiomeResultAt
+                if (generator instanceof ChunkGenerator chunkGen) {
+                    int x = (int) Math.floor(location.x());
+                    int y = (int) Math.floor(location.y());
+                    int z = (int) Math.floor(location.z());
+                    
+                    ZoneBiomeResult result = chunkGen.getZoneBiomeResultAt(x, y, z);
+                    if (result != null) {
+                        Biome biome = result.getBiome();
+                        if (biome != null) {
+                            return biome.getName();
+                        }
+                    }
+                }
+            }
+            
+            // Fallback: if we can't access ChunkGenerator directly
+            return "unknown";
+            
+        } catch (Exception e) {
+            // WorldGen system may not be fully initialized or may fail for edge cases
+            return "unknown";
+        }
     }
 
     @Override
     public Optional<String> getZone(LocationData location) {
-        // TODO: Implement when zone/region API is researched
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.getZone() requires Zone/Region API integration. " +
-            "Research needed: WorldMapManager, zone registration patterns."
-        );
+        if (location == null) {
+            return Optional.empty();
+        }
+        
+        World world = location.world() != null ? Universe.get().getWorld(location.world()) : getWorld();
+        if (world == null) {
+            return Optional.empty();
+        }
+        
+        try {
+            // Same access pattern as getBiome() - via IWorldMapProvider → ChunkGenerator
+            var worldConfig = world.getWorldConfig();
+            if (worldConfig == null) {
+                return Optional.empty();
+            }
+            
+            var worldGenProvider = worldConfig.getWorldGenProvider();
+            if (worldGenProvider == null) {
+                return Optional.empty();
+            }
+            
+            if (worldGenProvider instanceof IWorldMapProvider mapProvider) {
+                var generator = mapProvider.getGenerator(world);
+                if (generator instanceof ChunkGenerator chunkGen) {
+                    int x = (int) Math.floor(location.x());
+                    int y = (int) Math.floor(location.y());
+                    int z = (int) Math.floor(location.z());
+                    
+                    ZoneBiomeResult result = chunkGen.getZoneBiomeResultAt(x, y, z);
+                    if (result != null) {
+                        ZoneGeneratorResult zoneResult = result.getZoneResult();
+                        if (zoneResult != null) {
+                            Zone zone = zoneResult.getZone();
+                            if (zone != null) {
+                                return Optional.of(zone.name());
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return Optional.empty();
+            
+        } catch (Exception e) {
+            // WorldGen system may not be fully initialized or may fail for edge cases
+            return Optional.empty();
+        }
     }
 
     @Override

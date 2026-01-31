@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Phase 6 Cinematic Camera & Animation API (2026-01-31)
+
+- **CameraAccessor Implementation** (`com.argonathsystems.adapter.hytale.accessor`):
+  - `HytaleCameraAccessor.java`: Hytale implementation of camera control interface
+    - State management with `getCameraState()` / `setCameraState()`
+    - Position/rotation control (stub mode - awaiting SDK camera API)
+    - Visual effects: shake, letterbox, depth of field (stub mode)
+    - Cinematic mode with camera detach/attach
+    - Per-player state tracking with `InternalCameraState`
+    - `cleanupPlayer(UUID)` for disconnect handling
+  - Specification: SF-NPC-044, IMPL-PLAN-2026-Q1-NPC-QUEST-ANIMATION Phase 6
+
+- **Animation REST API** (`com.argonathsystems.adapter.hytale.webserver`):
+  - `NPCAnimationApiController.java`: REST endpoints for NPC animation discovery
+    - `GET /api/npc/models/{modelId}/animations` - Discover animations for a model
+    - `GET /api/npc/animations/triggers` - List all available animation triggers
+    - `GET /api/npc/animations/trigger/{trigger}` - Get animations for a specific trigger
+    - `POST /api/npc/{npcId}/trigger/{trigger}` - Manually trigger an animation
+  - Specification: IMPL-PLAN-2026-Q1-NPC-QUEST-ANIMATION Phase 5
+
 ### Added - Phase 5 SDK Stub Implementation (2026-01-31)
 
 - **Entity Stats Operations** in `HytaleNPCEntityAccessor`:
@@ -35,6 +55,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `getBlockType(location)` - ✅ Uses `WorldChunk.getBlock(localX, y, localZ)`
   - `setBlock(world, x, y, z, blockId)` - ✅ Uses `WorldChunk.setBlock(...)` with thread safety
   - Chunk key calculation: `((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL)`
+
+- **Weather Operations** in `HytaleWorldAccessor`:
+  - `hasWeather()` - ✅ Uses `WeatherPlugin.get()` + `WeatherResource.getForcedWeatherIndex()`
+  - Access pattern: `world.getEntityStore().getStore().getResource(resourceType)`
+
+- **HIGH RISK API Research Documentation**:
+  - Created `HIGH_RISK_API_RESEARCH.md` documenting:
+    - Pathfinding API (AStarWithTarget, PathFollower, MotionController)
+    - Biome API (BiomeType, BiomeInterpolation)
+    - Zone/Region API (WorldMapManager, IWorldMap)
+    - Weather API (WeatherPlugin, WeatherTracker, WeatherResource)
+
+- **Unit Tests**:
+  - `HytaleNPCEntityAccessorTest.java` - 400+ lines covering entity operations
+  - `HytaleWorldAccessorTest.java` - 300+ lines covering block/world operations
 
 ### Changed
 

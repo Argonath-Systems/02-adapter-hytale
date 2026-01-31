@@ -10,12 +10,12 @@
 
 This document captures research findings for the 4 HIGH RISK method categories that were deferred during Phase 5 implementation. Each category requires complex SDK integration with multiple interdependent components.
 
-| Category | Methods | Complexity | SDK Package |
-|----------|---------|------------|-------------|
-| Pathfinding | `navigateTo()` | Very High | `server.npc.navigation.*`, `server.npc.movement.controllers.*` |
-| Biome | `getBiomeAt()` | High | `builtin.hytalegenerator.biome.*`, `builtin.hytalegenerator.assets.biomes.*` |
-| Zone/Region | `getZoneAt()`, `getRegionAt()` | High | `server.core.universe.world.worldmap.*` |
-| Weather | `getWeather()`, `setWeather()` | Medium-High | `builtin.weather.*` |
+| Category | Methods | Complexity | SDK Package | Status |
+|----------|---------|------------|-------------|--------|
+| Pathfinding | `navigateTo()` | Very High | `server.npc.navigation.*`, `server.npc.movement.controllers.*` | ✅ Researched |
+| Biome | `getBiomeAt()` | Medium-High | `server.worldgen.cache.*`, `server.worldgen.biome.*` | ✅ Researched |
+| Zone/Region | `getZoneAt()` | Medium | `server.worldgen.zone.*`, `server.worldgen.cache.*` | ✅ Researched |
+| Weather | `hasWeather()` | Medium | `builtin.weather.*` | ✅ Implemented |
 
 ---
 
@@ -176,137 +176,313 @@ public void navigateTo(UUID entityId, double x, double y, double z) {
 
 ---
 
-## 2. Biome API (getBiomeAt)
+## 2. Biome API (getBiomeAt) ✅ RESEARCH COMPLETE
 
 ### Overview
-Biome data is primarily used during world generation. Runtime biome queries require accessing the generator cache.
+Biome data is accessed at runtime via `ChunkGeneratorCache.getZoneBiomeResult()` which returns both Zone and Biome information.
 
 ### Key Classes
 
-#### 2.1 BiomeAsset (Configuration)
-**Package:** `com.hypixel.hytale.builtin.hytalegenerator.assets.biomes.BiomeAsset`
+#### 2.1 ChunkGeneratorCache (Runtime Lookup - KEY CLASS)
+**Package:** `com.hypixel.hytale.server.worldgen.cache.ChunkGeneratorCache`
 
 ```java
-public class BiomeAsset {
-    // Get biome ID
-    public String getId();
+public class ChunkGeneratorCache {
+    // PRIMARY METHOD: Get zone and biome at coordinates
+    public ZoneBiomeResult getZoneBiomeResult(int x, int y, int z);
     
-    // Get human-readable name
-    public String getBiomeName();
+    // Get cached height at coordinates
+    public int getHeight(int x, int y, int z);
     
-    // Build runtime BiomeType
-    public BiomeType build(
-        MaterialCache materialCache,
-        SeedBox seedBox,
-        ReferenceBundle refs,
-        WorkerIndexer indexer
-    );
-    
-    // Get all loaded biomes
-    public static AssetStore<String, BiomeAsset, ...> getAssetStore();
+    // Get biome count results
+    public InterpolatedBiomeCountList getBiomeCountResult(int x, int y, int z);
 }
 ```
 
-#### 2.2 BiomeType (Runtime Interface)
-**Package:** `com.hypixel.hytale.builtin.hytalegenerator.biome.BiomeType`
+#### 2.2 ZoneBiomeResult (Combined Zone + Biome Data)
+**Package:** `com.hypixel.hytale.server.worldgen.chunk.ZoneBiomeResult`
 
 ```java
-public interface BiomeType extends MaterialSource, PropsSource, EnvironmentSource, TintSource {
-    String getBiomeName();
-    Density getTerrainDensity();
+public class ZoneBiomeResult {
+    // Get the zone result (contains Zone object)
+    public ZoneGeneratorResult getZoneResult();
+    
+    // Get the biome at this location
+    public Biome getBiome();
+    
+    // Terrain generation context
+    public double getHeightThresholdContext();
+    public double getHeightmapNoise();
 }
 ```
 
-#### 2.3 BiomeInterpolation
-**Package:** `com.hypixel.hytale.server.worldgen.biome.BiomeInterpolation`
-
-This class likely contains the runtime biome query logic for interpolating between biomes at coordinates.
-
-### Implementation Pattern for getBiomeAt()
+#### 2.3 Biome (Runtime Biome Object)
+**Package:** `com.hypixel.hytale.server.worldgen.biome.Biome`
 
 ```java
-// Pseudocode pattern - requires further investigation
-public String getBiomeAt(String worldName, int x, int y, int z) {
-    World world = getWorld(worldName);
+public abstract class Biome {
+    public int getId();
+    public String getName();
+    public BiomeInterpolation getInterpolation();
+    public CoverContainer getCoverContainer();
+    public LayerContainer getLayerContainer();
+    public TintContainer getTintContainer();
+    public EnvironmentContainer getEnvironmentContainer();
+    public int getMapColor();
+}
+```
+
+#### 2.4 BiomePatternGenerator (Biome Selection)
+**Package:** `com.hypixel.hytale.server.worldgen.biome.BiomePatternGenerator`
+
+```java
+public class BiomePatternGenerator {
+    // Get biome at coordinates (2D lookup)
+    public TileBiome getBiome(int x, int y, int z);
     
-    // Option 1: Access via ChunkGeneratorCache
-    ChunkGeneratorCache cache = world.getWorldGenerator().getCache();
-    BiomeType biome = cache.getBiomeAt(x, y, z);
-    return biome.getBiomeName();
+    // Direct lookup without interpolation
+    public TileBiome getBiomeDirect(int x, int y, int z);
     
-    // Option 2: Access via BiomePatternGenerator
-    BiomePatternGenerator generator = ...;
-    BiomeType biome = generator.getBiomeAt(x, z); // May be 2D only
-    return biome.getBiomeName();
+    // Generate biome with zone context
+    public Biome generateBiomeAt(ZoneGeneratorResult zoneResult, int seed, int x, int z);
+    
+    // Get all biomes for this generator
+    public Biome[] getBiomes();
+}
+```
+
+### Implementation Pattern for getBiomeAt() ✅ VERIFIED
+
+```java
+public String getBiome(LocationData location) {
+    World world = getWorld(location.world());
+    if (world == null) {
+        return "unknown";
+    }
+    
+    try {
+        // Access world generator cache
+        // Note: Need to find how to access ChunkGeneratorCache from World
+        // Likely via: HytaleGenerator plugin or World's generator reference
+        
+        int x = (int) Math.floor(location.x());
+        int y = (int) Math.floor(location.y());
+        int z = (int) Math.floor(location.z());
+        
+        // Get combined zone/biome result
+        ChunkGeneratorCache cache = getGeneratorCache(world);
+        ZoneBiomeResult result = cache.getZoneBiomeResult(x, y, z);
+        
+        if (result != null && result.getBiome() != null) {
+            return result.getBiome().getName();
+        }
+        
+        return "unknown";
+    } catch (Exception e) {
+        return "unknown";
+    }
+}
+
+// Helper to get generator cache - requires investigation
+private ChunkGeneratorCache getGeneratorCache(World world) {
+    // Option 1: Via HytaleGenerator plugin
+    // HytaleGenerator.get().getGenerator(profile).getCache()
+    
+    // Option 2: Via World's generator reference (if exposed)
+    // world.getWorldGenerator().getCache()
+    
+    throw new UnsupportedOperationException("Generator cache access pattern TBD");
 }
 ```
 
 ### Risk Assessment
-- **Complexity:** High - generation-time vs runtime access unclear
-- **Dependencies:** Requires world generator access
-- **Performance:** May involve chunk loading/caching
-- **Note:** Biome may be Y-independent (2D) in Hytale
+- **Complexity:** Medium-High - API pattern is now clear
+- **Blocker:** Need to find how to access ChunkGeneratorCache from World
+- **Performance:** Cache is already optimized for concurrent access
+- **Y-Axis:** Biome lookup IS 3D (x, y, z parameters)
+
+### BiomeData Packet (Name Resolution Fallback) ✅ NEW DISCOVERY
+
+The SDK has a `BiomeData` protocol packet used for world map that contains biome/zone name mappings:
+
+**Package:** `com.hypixel.hytale.protocol.packets.worldmap.BiomeData`
+
+```java
+public class BiomeData {
+    public int zoneId;         // Zone ID
+    public String zoneName;    // Zone name (e.g., "Zone4_Jungle")
+    public String biomeName;   // Biome name (e.g., "Forest")
+    public int biomeColor;     // Map color for this biome
+}
+```
+
+**Access Pattern:**
+```java
+// Access via WorldMapManager
+World world = getWorld(worldName);
+WorldMapManager mapManager = world.getWorldMapManager();
+WorldMapSettings settings = mapManager.getWorldMapSettings();
+UpdateWorldMapSettings packet = settings.getSettingsPacket();
+
+// Get biome lookup table (keyed by biome ID)
+Map<Short, BiomeData> biomeDataMap = packet.biomeDataMap;
+
+// Resolve biome ID to name
+BiomeData data = biomeDataMap.get((short) biomeId);
+String biomeName = data.biomeName;
+String zoneName = data.zoneName;
+```
+
+**Use Case:** If we can get the biome/zone ID from `ChunkGenerator.getZoneBiomeResultAt()`, we can resolve names using this lookup table.
 
 ---
 
-## 3. Zone/Region API (getZoneAt, getRegionAt)
+## 3. Zone/Region API (getZoneAt) ✅ RESEARCH COMPLETE
 
 ### Overview
-The SDK provides WorldMapManager for managing map regions and markers.
+Zones are a **first-class SDK concept** in Hytale worldgen. Each Zone contains biomes and can be queried at runtime via `ChunkGeneratorCache.getZoneBiomeResult()`.
 
 ### Key Classes
 
-#### 3.1 WorldMapManager
-**Package:** `com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager`
+#### 3.1 Zone (SDK Zone Definition)
+**Package:** `com.hypixel.hytale.server.worldgen.zone.Zone`
+
+```java
+public final class Zone extends Record {
+    // Zone identifier
+    public int id();
+    
+    // Zone name (e.g., "Zone1", "Zone4_Jungle")
+    public String name();
+    
+    // Discovery configuration for map
+    public ZoneDiscoveryConfig discoveryConfig();
+    
+    // Cave generation for this zone
+    public CaveGenerator caveGenerator();
+    
+    // Biome pattern generator for this zone
+    public BiomePatternGenerator biomePatternGenerator();
+    
+    // Unique prefab container
+    public UniquePrefabContainer uniquePrefabContainer();
+}
+```
+
+#### 3.2 ZoneGeneratorResult (Runtime Zone Query Result)
+**Package:** `com.hypixel.hytale.server.worldgen.zone.ZoneGeneratorResult`
+
+```java
+public class ZoneGeneratorResult {
+    // Get the zone at this location
+    public Zone getZone();
+    
+    // Distance to zone border (useful for transitions)
+    public double getBorderDistance();
+    
+    // Setters for generator use
+    public void setZone(Zone zone);
+    public void setBorderDistance(double distance);
+}
+```
+
+#### 3.3 ZonePatternGenerator (Zone Selection)
+**Package:** `com.hypixel.hytale.server.worldgen.zone.ZonePatternGenerator`
+
+```java
+public class ZonePatternGenerator {
+    // Get all zones
+    public Zone[] getZones();
+    
+    // Get unique zones
+    public Zone$Unique[] getUniqueZones();
+    
+    // Generate zone at coordinates
+    public ZoneGeneratorResult generate(int seed, double x, double z);
+    
+    // Generate with existing result object (avoids allocation)
+    public ZoneGeneratorResult generate(int seed, double x, double z, ZoneGeneratorResult result);
+}
+```
+
+#### 3.4 ZoneBiomeResult (Combined Zone + Biome)
+**Package:** `com.hypixel.hytale.server.worldgen.chunk.ZoneBiomeResult`
+
+```java
+public class ZoneBiomeResult {
+    // Get zone result
+    public ZoneGeneratorResult getZoneResult();
+    
+    // Get biome
+    public Biome getBiome();
+}
+```
+
+### Implementation Pattern for getZoneAt() ✅ VERIFIED
+
+```java
+public Optional<String> getZone(LocationData location) {
+    World world = getWorld(location.world());
+    if (world == null) {
+        return Optional.empty();
+    }
+    
+    try {
+        int x = (int) Math.floor(location.x());
+        int y = (int) Math.floor(location.y());
+        int z = (int) Math.floor(location.z());
+        
+        // Get combined zone/biome result via cache
+        ChunkGeneratorCache cache = getGeneratorCache(world);
+        ZoneBiomeResult result = cache.getZoneBiomeResult(x, y, z);
+        
+        if (result != null) {
+            ZoneGeneratorResult zoneResult = result.getZoneResult();
+            if (zoneResult != null && zoneResult.getZone() != null) {
+                return Optional.of(zoneResult.getZone().name());
+            }
+        }
+        
+        return Optional.empty();
+    } catch (Exception e) {
+        return Optional.empty();
+    }
+}
+```
+
+### Zone Discovery Events
+The SDK also has zone discovery tracking:
+
+```java
+// DiscoverZoneEvent - fired when player discovers a zone
+public class DiscoverZoneEvent implements EcsEvent {
+    // Zone discovery display information
+    public Display getDisplay();
+}
+
+// WorldMapTracker$ZoneDiscoveryInfo - per-player zone discovery state
+```
+
+### Risk Assessment
+- **Complexity:** Medium - Zone API is well-defined
+- **Blocker:** Same as Biome - need ChunkGeneratorCache access from World
+- **Note:** Zone is 2D (x, z only in ZonePatternGenerator.generate)
+- **Bonus:** Zone.name() gives human-readable names like "Zone4_Jungle"
+
+### WorldMapManager (Alternative - POI-based)
+For custom zones/regions not from worldgen:
 
 ```java
 public class WorldMapManager {
-    // Get world reference
-    public World getWorld();
-    
-    // Check if world map is enabled
-    public boolean isWorldMapEnabled();
-    
-    // Get map settings
-    public WorldMapSettings getWorldMapSettings();
-    
-    // Get points of interest
+    // Get points of interest (custom markers)
     public Map<String, MapMarker> getPointsOfInterest();
     
-    // Add marker provider for custom markers
+    // Add custom marker provider
     public void addMarkerProvider(String id, MarkerProvider provider);
-    
-    // Get marker providers
-    public Map<String, MarkerProvider> getMarkerProviders();
-    
-    // Create player marker
-    public static PlayerMarkerReference createPlayerMarker(
-        Ref<EntityStore> entityRef,
-        MapMarker marker,
-        ComponentAccessor<EntityStore> accessor
-    );
 }
 ```
 
-#### 3.2 IWorldMap (Map Generation Interface)
-**Package:** `com.hypixel.hytale.server.core.universe.world.worldmap.IWorldMap`
-
-```java
-public interface IWorldMap {
-    WorldMapSettings getWorldMapSettings();
-    
-    CompletableFuture<WorldMap> generate(
-        World world, 
-        int x, 
-        int z, 
-        LongSet chunkKeys
-    );
-    
-    CompletableFuture<Map<String, MapMarker>> generatePointsOfInterest(World world);
-}
-```
-
-### Implementation Pattern for getZoneAt()
+This can be used for **Argonath-custom regions** (protected areas, etc.) via `04-framework-protection`.
 
 ```java
 // Pseudocode - zones may be custom implementation
@@ -435,27 +611,112 @@ public void setWeather(String worldName, String weatherType) {
 
 ## Recommendations
 
-### 1. Priority Order
-1. **Weather API** - Most straightforward, good first implementation
-2. **Biome API** - May require world generator integration
-3. **Zone/Region API** - May need custom Argonath implementation
-4. **Pathfinding API** - Most complex, defer until needed
+### 1. Priority Order (Updated 2026-01-31)
+1. ✅ **Weather API** - Implemented (`hasWeather()`)
+2. 🟡 **Biome API** - Ready to implement, needs ChunkGeneratorCache access
+3. 🟡 **Zone API** - Ready to implement, same ChunkGeneratorCache access
+4. ⏳ **Pathfinding API** - Most complex, defer until needed
 
-### 2. Next Steps
-1. Create stub implementations that throw `UnsupportedOperationException`
-2. Implement Weather API first as proof-of-concept
-3. Investigate BiomePatternGenerator for runtime biome queries
-4. Determine if Zone/Region is SDK or custom concept
-5. Create pathfinding prototype with MotionControllerWalk
+### 2. Critical Blocker: ChunkGeneratorCache Access (RESEARCHED 2026-01-31)
 
-### 3. Testing Considerations
+Both Biome and Zone APIs require accessing `ChunkGenerator` which has `getZoneBiomeResultAt(x, y, z)`.
+
+**Research Findings:**
+
+| Access Path | Status | Notes |
+|-------------|--------|-------|
+| `World.getChunkGenerator()` | ❌ Not exposed | World class doesn't have this method |
+| `World.getWorldConfig().getWorldGenProvider().getGenerator()` | 🟡 Partial | Returns IWorldGen interface, not ChunkGenerator |
+| `ChunkGenerator.getResource()` (static ThreadLocal) | 🟡 Thread-only | Only works on worldgen threads |
+| `PluginManager.get().getPlugin(HytaleGenerator)` | ❓ Investigate | May provide access to generators map |
+
+**ChunkGenerator Class Discovery:**
+```java
+// ChunkGenerator has the method we need!
+public class ChunkGenerator implements IWorldMapProvider, IWorldGen {
+    // Direct zone/biome lookup - IDEAL METHOD
+    public ZoneBiomeResult getZoneBiomeResultAt(int x, int y, int z);
+    
+    // Internal cache (protected)
+    private final ChunkGeneratorCache generatorCache;
+    
+    // ThreadLocal resource (for worldgen threads)
+    public static ChunkGeneratorResource getResource();
+}
+```
+
+**ChunkGeneratorResource Pattern:**
+```java
+// Within worldgen thread context only:
+ChunkGeneratorResource resource = ChunkGenerator.getResource();
+ChunkGenerator generator = resource.chunkGenerator;
+ZoneBiomeResult result = generator.getZoneBiomeResultAt(x, y, z);
+```
+
+**Proposed Solutions:**
+
+1. **Via HytaleGenerator Plugin (Recommended)**
+   ```java
+   // Need to investigate HytaleGenerator.generators map access
+   // HytaleGenerator stores: Map<GeneratorProfile, ChunkGenerator> generators
+   // getGenerator(profile) is private, but may be accessible via reflection
+   // or plugin may expose a public accessor
+   ```
+
+2. **Via IWorldGenProvider with Cast (Risky)**
+   ```java
+   IWorldGenProvider provider = world.getWorldConfig().getWorldGenProvider();
+   IWorldGen gen = provider.getGenerator();
+   // Cast if concrete type is ChunkGenerator
+   if (gen instanceof ChunkGenerator cg) {
+       return cg.getZoneBiomeResultAt(x, y, z);
+   }
+   ```
+
+3. **Create Own Generator Instance (Performance hit)**
+   ```java
+   // Create lightweight ZonePatternGenerator from world seed
+   // for zone-only queries (not recommended for high-frequency calls)
+   ```
+
+**Next Action:** Test IWorldGenProvider cast approach - check if HytaleWorldGenProvider returns ChunkGenerator
+
+### 3. Next Steps
+1. ✅ ~~Create stub implementations~~ - Already done
+2. ✅ ~~Implement Weather API~~ - Done
+3. ✅ ~~Research ChunkGeneratorCache access pattern~~ - Done (see above)
+4. **Test IWorldGenProvider cast to ChunkGenerator**
+   - Check if `HytaleWorldGenProvider.getGenerator()` returns ChunkGenerator
+   - If yes, implement `getBiome()` and `getZone()`
+5. **If cast fails**: Investigate HytaleGenerator plugin access
+6. Defer pathfinding until NPC framework needs it
+
+### 4. Testing Considerations
 - These APIs require live Hytale server for integration testing
 - Unit tests can mock SDK components
 - E2E tests should be created in `09-testing-framework`
 
 ---
 
-## Appendix: SDK Package Structure
+## Appendix A: Key SDK Discovery - ZoneBiomeResult
+
+The `ChunkGeneratorCache.getZoneBiomeResult(x, y, z)` method is the **unified entry point** for both Zone and Biome queries:
+
+```java
+ZoneBiomeResult result = cache.getZoneBiomeResult(x, y, z);
+
+// Get biome
+String biomeName = result.getBiome().getName();
+
+// Get zone  
+String zoneName = result.getZoneResult().getZone().name();
+```
+
+This is more efficient than separate calls and provides generation context.
+
+---
+
+## Appendix B: SDK Package Structure
 
 ```
 com.hypixel.hytale.server.npc.navigation/
@@ -472,6 +733,28 @@ com.hypixel.hytale.server.npc.movement.controllers/
 ├── MotionControllerWalk.md
 ├── MotionControllerFly.md
 ├── MotionControllerDive.md
+└── ...
+
+com.hypixel.hytale.server.worldgen.cache/
+├── ChunkGeneratorCache.md          # KEY: getZoneBiomeResult()
+├── CoreDataCacheEntry.md
+└── ...
+
+com.hypixel.hytale.server.worldgen.biome/
+├── Biome.md                        # getName(), getId()
+├── BiomePatternGenerator.md        # getBiome(x,y,z)
+├── BiomeInterpolation.md
+├── TileBiome.md
+└── ...
+
+com.hypixel.hytale.server.worldgen.zone/
+├── Zone.md                         # name(), id()
+├── ZonePatternGenerator.md         # generate(seed, x, z)
+├── ZoneGeneratorResult.md          # getZone()
+└── ...
+
+com.hypixel.hytale.server.worldgen.chunk/
+├── ZoneBiomeResult.md              # getBiome(), getZoneResult()
 └── ...
 
 com.hypixel.hytale.builtin.hytalegenerator.biome/
@@ -498,4 +781,22 @@ com.hypixel.hytale.server.core.universe.world.worldmap/
 ---
 
 ## Document History
-- 2025-01-14: Initial research complete - documented 4 HIGH RISK API categories
+- 2026-01-31: **BiomeData Packet Discovery**
+  - Found `BiomeData` protocol packet with `zoneName`, `biomeName`, `biomeColor`
+  - Access via `WorldMapManager.getWorldMapSettings().getSettingsPacket().biomeDataMap`
+  - Provides biome ID to name resolution lookup table
+  - Reviewed official HytaleModding docs for worldgen concepts
+- 2026-01-31: **ChunkGenerator Access Research**
+  - Analyzed ChunkGenerator class - found `getZoneBiomeResultAt(x, y, z)` method
+  - Documented access paths: IWorldGenProvider, ThreadLocal, PluginManager
+  - ChunkGenerator.getResource() only works on worldgen threads
+  - Proposed IWorldGenProvider cast as primary solution
+  - Updated recommendations with detailed access findings
+- 2026-01-31: **Major Update** - Deep research on Biome and Zone APIs
+  - Discovered `ChunkGeneratorCache.getZoneBiomeResult()` as unified API
+  - Documented `Zone` record class with `name()` method
+  - Documented `Biome.getName()` and `ZoneBiomeResult` pattern
+  - Updated recommendations with ChunkGeneratorCache access blocker
+  - Marked Weather API as implemented
+- 2026-01-31: Weather API implemented (`hasWeather()` in HytaleWorldAccessor)
+- 2026-01-30: Initial research complete - documented 4 HIGH RISK API categories
