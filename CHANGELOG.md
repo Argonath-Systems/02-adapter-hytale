@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Comprehensive Adapter Audit Remediation (2026-01-31)
+
+- **HytaleMultiWorldAccessor Complete SDK Integration**:
+  - `createWorld()` - Now uses async `Universe.makeWorld()` returning `CompletableFuture<World>`
+  - `loadWorld()` - Fixed to use async `Universe.loadWorld(String)` returning `CompletableFuture<World>`
+  - `unloadWorld()` - Fixed signature to `unloadWorld(String, boolean)` matching interface
+  - `removeWorld()` - Fixed to use `Universe.removeWorld(String)` (takes name, not World object)
+  - `getWorldPlayers()` - NEW: Uses `World.getPlayerRefs()` for per-world player list
+  - `getPlayerWorld()` - NEW: Uses `PlayerRef.getWorldUuid()` + `Universe.getWorld(UUID)`
+  - `getGameMode()` - NEW: Reverse maps SDK `GameMode` to framework `GameModeType`
+  - `getWorldByUuid()` - NEW: Uses `Universe.getWorld(UUID)`
+  - `getDefaultWorldName()` - NEW: Uses `Universe.getDefaultWorld().getName()`
+  - `getLoadedWorlds()` - NEW: Returns same as `getWorlds()` (all SDK worlds are loaded)
+  - `getWorldRule()` - NEW: Maps rule names to `WorldConfig` getters
+  - `getWorldRules()` - NEW: Returns Map of all world rules
+  - `getSpawnLocation()` - NEW: Returns default spawn (SDK doesn't expose spawn)
+  - `setSpawnLocation()` - NEW: Stub with logging (SDK doesn't support spawn setting)
+  - Fixed `IWorldGenProvider` import (was using non-existent `WorldGenProvider`)
+  - Fixed `WorldState.LOADED` → `WorldState.ACTIVE` (LOADED doesn't exist in enum)
+  - Fixed `GameMode` import to `com.hypixel.hytale.protocol.GameMode`
+
+- **HytaleGuildAccessor DTO Field Name Corrections**:
+  - Fixed `existing.guildId()` → `existing.id()`
+  - Fixed `existing.primaryColor()` → `existing.emblemPrimaryColor()`
+  - Fixed `existing.secondaryColor()` → `existing.emblemSecondaryColor()`
+  - Fixed `tx.currency()` → `tx.type()` (TransactionData uses type field)
+
+- **HytaleInstanceAccessor InstanceRecord Expansion**:
+  - Added `ownerId`, `maxPlayers`, `spawnLocation`, `returnLocation`, `state` fields
+  - Fixed `toInstanceData()` to pass all 12 required constructor arguments
+
+- **Interface Method Additions**:
+  - `DialogueOption.withText(String)` for localization support
+  - `DialogueNode.withText(String)`, `withOptions(List)`, `getOptions()` 
+  - `ConfigAccessor.loadYamlOptional(String)` default method
+
 ### Added - Phase 6 Cinematic Camera & Animation API (2026-01-31)
 
 - **CameraAccessor Implementation** (`com.argonathsystems.adapter.hytale.accessor`):

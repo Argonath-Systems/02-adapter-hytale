@@ -238,7 +238,8 @@ public class HytaleGuildAccessor implements GuildAccessor {
     public List<TransactionData> getRecentTransactions(UUID guildId, String currency, int limit) {
         List<TransactionData> guildTxs = transactions.getOrDefault(guildId, Collections.emptyList());
         return guildTxs.stream()
-            .filter(tx -> currency == null || tx.currency().equals(currency))
+            // currency param filters by transaction type (e.g., "GOLD", "SILVER")
+            .filter(tx -> currency == null || tx.type().equals(currency))
             .sorted(Comparator.comparingLong(TransactionData::timestamp).reversed())
             .limit(limit)
             .collect(Collectors.toList());
@@ -377,11 +378,11 @@ public class HytaleGuildAccessor implements GuildAccessor {
         }
         
         GuildData updated = new GuildData(
-            existing.guildId(), existing.name(), existing.tag(), existing.founderId(),
+            existing.id(), existing.name(), existing.tag(), existing.founderId(),
             motd, // Updated MOTD
             existing.createdAt(), existing.level(), existing.description(),
             existing.recruitmentStatus(), existing.emblemShape(), existing.emblemIcon(),
-            existing.primaryColor(), existing.secondaryColor()
+            existing.emblemPrimaryColor(), existing.emblemSecondaryColor()
         );
         guilds.put(guildId, updated);
         LOGGER.debug("Set MOTD for guild {}", guildId);
@@ -396,11 +397,11 @@ public class HytaleGuildAccessor implements GuildAccessor {
         }
         
         GuildData updated = new GuildData(
-            existing.guildId(), existing.name(), existing.tag(), existing.founderId(),
+            existing.id(), existing.name(), existing.tag(), existing.founderId(),
             existing.motd(), existing.createdAt(), existing.level(),
             description, // Updated description
             existing.recruitmentStatus(), existing.emblemShape(), existing.emblemIcon(),
-            existing.primaryColor(), existing.secondaryColor()
+            existing.emblemPrimaryColor(), existing.emblemSecondaryColor()
         );
         guilds.put(guildId, updated);
         LOGGER.debug("Set description for guild {}", guildId);
@@ -415,11 +416,11 @@ public class HytaleGuildAccessor implements GuildAccessor {
         }
         
         GuildData updated = new GuildData(
-            existing.guildId(), existing.name(), existing.tag(), existing.founderId(),
+            existing.id(), existing.name(), existing.tag(), existing.founderId(),
             existing.motd(), existing.createdAt(), existing.level(), existing.description(),
             status, // Updated recruitment status
             existing.emblemShape(), existing.emblemIcon(),
-            existing.primaryColor(), existing.secondaryColor()
+            existing.emblemPrimaryColor(), existing.emblemSecondaryColor()
         );
         guilds.put(guildId, updated);
         LOGGER.debug("Set recruitment status for guild {} to {}", guildId, status);
@@ -434,7 +435,7 @@ public class HytaleGuildAccessor implements GuildAccessor {
         }
         
         GuildData updated = new GuildData(
-            existing.guildId(), existing.name(), existing.tag(), existing.founderId(),
+            existing.id(), existing.name(), existing.tag(), existing.founderId(),
             existing.motd(), existing.createdAt(), existing.level(), existing.description(),
             existing.recruitmentStatus(),
             shape, icon, primaryColor, secondaryColor // Updated emblem

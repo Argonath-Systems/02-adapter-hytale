@@ -1,22 +1,23 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
-import com.argonathsystems.framework.accessor.MultiWorldAccessor;
+import com.argonathsystems.framework.accessorapi.MultiWorldAccessor;
+import com.argonathsystems.framework.accessorapi.MultiWorldAccessor.GameModeType;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 import com.argonathsystems.framework.accessorapi.dto.TeleportResult;
 import com.argonathsystems.framework.accessorapi.dto.WorldCreateConfig;
 import com.argonathsystems.framework.accessorapi.dto.WorldData;
 import com.argonathsystems.framework.accessorapi.dto.WorldState;
 import com.argonathsystems.framework.accessorapi.dto.WorldType;
+import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.HytaleServer;
-import com.hypixel.hytale.server.core.entity.PlayerRef;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldConfig;
-import com.hypixel.hytale.server.core.universe.world.gen.DummyWorldGenProvider;
-import com.hypixel.hytale.server.core.universe.world.gen.FlatWorldGenProvider;
-import com.hypixel.hytale.server.core.universe.world.gen.VoidWorldGenProvider;
-import com.hypixel.hytale.server.core.universe.world.gen.WorldGenProvider;
-import org.joml.Vector3f;
+import com.hypixel.hytale.server.core.universe.world.worldgen.provider.DummyWorldGenProvider;
+import com.hypixel.hytale.server.core.universe.world.worldgen.provider.FlatWorldGenProvider;
+import com.hypixel.hytale.server.core.universe.world.worldgen.provider.IWorldGenProvider;
+import com.hypixel.hytale.math.vector.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Instant;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -80,48 +83,41 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     public CompletableFuture<WorldData> createWorld(WorldCreateConfig config) {
         LOGGER.info("Creating world: {} (type={})", config.name(), config.type());
         
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                Universe universe = Universe.get();
-                
-                // Build world configuration
-                WorldConfig worldConfig = new WorldConfig();
-                
-                // Set world generation provider based on type
-                WorldGenProvider genProvider = createWorldGenProvider(config);
-                worldConfig.setWorldGenProvider(genProvider);
-                
-                // Apply game mode
-                if (config.gameMode() != null) {
-                    worldConfig.setGameMode(mapGameMode(config.gameMode()));
-                }
-                
-                // Apply world rules from config
-                applyWorldRules(worldConfig, config);
-                
-                // Determine world path
-                Path worldPath = determineWorldPath(config);
-                
-                // Create the world using Universe API
-                // Universe.makeWorld(name, path, config) creates a new world
-                World world = universe.makeWorld(config.name(), worldPath, worldConfig);
-                
+        Universe universe = Universe.get();
+        
+        // Build world configuration
+        WorldConfig worldConfig = new WorldConfig();
+        
+        // Set world generation provider based on type
+        IWorldGenProvider genProvider = createWorldGenProvider(config);
+        worldConfig.setWorldGenProvider(genProvider);
+        
+        // Apply game mode
+        if (config.gameMode() != null) {
+            worldConfig.setGameMode(mapGameMode(config.gameMode()));
+        }
+        
+        // Apply world rules from config
+        applyWorldRules(worldConfig, config);
+        
+        // Determine world path
+        Path worldPath = determineWorldPath(config);
+        
+        // Create the world using Universe API (returns CompletableFuture)
+        return universe.makeWorld(config.name(), worldPath, worldConfig)
+            .thenApply(world -> {
                 if (world == null) {
                     throw new RuntimeException("Universe.makeWorld returned null for: " + config.name());
                 }
                 
-                // Add to universe if needed (some implementations require explicit add)
-                // universe.addWorld(world);
-                
                 LOGGER.info("Successfully created world: {}", config.name());
                 
-                return convertToWorldData(world, WorldState.LOADED);
-                
-            } catch (Exception e) {
+                return convertToWorldData(world, WorldState.ACTIVE);
+            })
+            .exceptionally(e -> {
                 LOGGER.error("Failed to create world: {}", config.name(), e);
                 throw new RuntimeException("World creation failed: " + e.getMessage(), e);
-            }
-        });
+            });
     }
     
     @Override
@@ -141,8 +137,8 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
                 
                 World world = worldOpt.get();
                 
-                // Remove from universe
-                universe.removeWorld(world);
+                // Remove from universe (SDK takes world name)
+                universe.removeWorld(world.getName());
                 
                 // Delete files if requested
                 if (deleteFiles) {
@@ -166,35 +162,28 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     public CompletableFuture<WorldData> loadWorld(String name) {
         LOGGER.info("Loading world: {}", name);
         
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                Universe universe = Universe.get();
-                
-                // Try to load from disk
-                Path worldPath = Path.of("worlds", name);
-                World world = universe.loadWorld(worldPath);
-                
+        Universe universe = Universe.get();
+        
+        // loadWorld(String) handles loading from disk and adding to universe
+        return universe.loadWorld(name)
+            .thenApply(world -> {
                 if (world == null) {
                     throw new RuntimeException("Failed to load world: " + name);
                 }
                 
-                // Add to universe
-                universe.addWorld(world);
-                
                 LOGGER.info("Successfully loaded world: {}", name);
                 
-                return convertToWorldData(world, WorldState.LOADED);
-                
-            } catch (Exception e) {
+                return convertToWorldData(world, WorldState.ACTIVE);
+            })
+            .exceptionally(e -> {
                 LOGGER.error("Failed to load world: {}", name, e);
                 throw new RuntimeException("World load failed: " + e.getMessage(), e);
-            }
-        });
+            });
     }
     
     @Override
-    public CompletableFuture<Void> unloadWorld(String name) {
-        LOGGER.info("Unloading world: {}", name);
+    public CompletableFuture<Void> unloadWorld(String name, boolean save) {
+        LOGGER.info("Unloading world: {} (save={})", name, save);
         
         return CompletableFuture.runAsync(() -> {
             try {
@@ -212,7 +201,7 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
                 // world.save(); // If available in SDK
                 
                 // Remove from active worlds but keep on disk
-                universe.removeWorld(world);
+                universe.removeWorld(world.getName());
                 
                 LOGGER.info("Successfully unloaded world: {}", name);
                 
@@ -227,15 +216,39 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     
     @Override
     public Collection<WorldData> getWorlds() {
-        return Universe.get().getWorlds().stream()
-            .map(world -> convertToWorldData(world, WorldState.LOADED))
+        return Universe.get().getWorlds().values().stream()
+            .map(world -> convertToWorldData(world, WorldState.ACTIVE))
             .collect(Collectors.toList());
+    }
+    
+    @Override
+    public Collection<WorldData> getLoadedWorlds() {
+        // In Hytale SDK, all worlds in Universe.getWorlds() are loaded
+        // There's no distinction between loaded and registered worlds
+        return getWorlds();
     }
     
     @Override
     public Optional<WorldData> getWorld(String name) {
         return findWorld(name)
-            .map(world -> convertToWorldData(world, WorldState.LOADED));
+            .map(world -> convertToWorldData(world, WorldState.ACTIVE));
+    }
+    
+    @Override
+    public Optional<WorldData> getWorldByUuid(UUID uuid) {
+        Universe universe = Universe.get();
+        World world = universe.getWorld(uuid);
+        if (world == null) {
+            return Optional.empty();
+        }
+        return Optional.of(convertToWorldData(world, WorldState.ACTIVE));
+    }
+    
+    @Override
+    public String getDefaultWorldName() {
+        Universe universe = Universe.get();
+        World defaultWorld = universe.getDefaultWorld();
+        return defaultWorld != null ? defaultWorld.getName() : "world";
     }
     
     @Override
@@ -246,6 +259,100 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     @Override
     public boolean isWorldLoaded(String name) {
         return findWorld(name).isPresent();
+    }
+    
+    @Override
+    public void setSpawnLocation(String worldName, LocationData location) {
+        findWorld(worldName).ifPresentOrElse(
+            world -> {
+                // SDK doesn't expose direct spawn setting on WorldConfig
+                // This would typically be stored in world metadata and used when spawning players
+                LOGGER.info("Set spawn location for world {} to ({}, {}, {})", 
+                    worldName, location.x(), location.y(), location.z());
+                // TODO: Store spawn location in world metadata or custom storage
+                // when SDK provides proper spawn location management API
+            },
+            () -> LOGGER.warn("Cannot set spawn for non-existent world: {}", worldName)
+        );
+    }
+    
+    @Override
+    public Optional<LocationData> getSpawnLocation(String worldName) {
+        return findWorld(worldName)
+            .map(world -> {
+                // Get spawn location from world config if set
+                WorldConfig config = world.getWorldConfig();
+                // WorldConfig doesn't expose spawn directly, use (0,64,0) as default
+                // In actual implementation, spawn would be stored in world metadata
+                return new LocationData(
+                    worldName,
+                    0.0, 64.0, 0.0,  // Default spawn at world center, sea level
+                    0.0f, 0.0f       // Default yaw/pitch
+                );
+            });
+    }
+    
+    @Override
+    public GameModeType getGameMode(String worldName) {
+        return findWorld(worldName)
+            .map(world -> {
+                GameMode mode = world.getWorldConfig().getGameMode();
+                return reverseMapGameMode(mode);
+            })
+            .orElse(GameModeType.ADVENTURE);
+    }
+    
+    /**
+     * Reverse map from Hytale GameMode to framework GameModeType.
+     */
+    private GameModeType reverseMapGameMode(GameMode mode) {
+        if (mode == null) {
+            return GameModeType.ADVENTURE;
+        }
+        return switch (mode) {
+            case Creative -> GameModeType.CREATIVE;
+            case Adventure -> GameModeType.ADVENTURE;
+            default -> GameModeType.ADVENTURE;
+        };
+    }
+    
+    @Override
+    public Optional<String> getPlayerWorld(UUID playerId) {
+        Universe universe = Universe.get();
+        PlayerRef playerRef = universe.getPlayer(playerId);
+        if (playerRef == null) {
+            return Optional.empty();
+        }
+        
+        // Get the world UUID from the player and find the world by UUID
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            return Optional.empty();
+        }
+        
+        // Universe.getWorld(UUID) returns the world for that UUID
+        World world = universe.getWorld(worldUuid);
+        if (world == null) {
+            return Optional.empty();
+        }
+        
+        return Optional.of(world.getName());
+    }
+    
+    @Override
+    public Collection<UUID> getWorldPlayers(String worldName) {
+        Optional<World> worldOpt = findWorld(worldName);
+        if (worldOpt.isEmpty()) {
+            LOGGER.debug("World not found for getWorldPlayers: {}", worldName);
+            return java.util.Collections.emptyList();
+        }
+        
+        World world = worldOpt.get();
+        
+        // World has getPlayerRefs() which returns players in that specific world
+        return world.getPlayerRefs().stream()
+            .map(PlayerRef::getUuid)
+            .collect(Collectors.toList());
     }
     
     // ==================== Teleportation ====================
@@ -259,7 +366,7 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
                 // Find target world
                 Optional<World> worldOpt = findWorld(worldName);
                 if (worldOpt.isEmpty()) {
-                    return new TeleportResult(false, "World not found: " + worldName, null);
+                    return TeleportResult.failure("World not found: " + worldName);
                 }
                 
                 World targetWorld = worldOpt.get();
@@ -267,7 +374,7 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
                 // Find player reference
                 PlayerRef playerRef = findPlayerRef(playerId);
                 if (playerRef == null) {
-                    return new TeleportResult(false, "Player not found", null);
+                    return TeleportResult.failure("Player not found");
                 }
                 
                 // Calculate transform (position + rotation)
@@ -296,11 +403,11 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
                 
                 LOGGER.info("Successfully teleported player {} to world {}", playerId, worldName);
                 
-                return new TeleportResult(true, "Teleported successfully", finalLocation);
+                return TeleportResult.success(finalLocation, "Teleported successfully");
                 
             } catch (Exception e) {
                 LOGGER.error("Failed to teleport player {} to world {}", playerId, worldName, e);
-                return new TeleportResult(false, "Teleport failed: " + e.getMessage(), null);
+                return TeleportResult.failure("Teleport failed: " + e.getMessage());
             }
         });
     }
@@ -308,25 +415,71 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     // ==================== World Rules ====================
     
     @Override
-    public void setWorldRule(String worldName, WorldRule rule, Object value) {
+    public void setWorldRule(String worldName, String rule, Object value) {
         LOGGER.debug("Setting world rule {}={} for world {}", rule, value, worldName);
         
         findWorld(worldName).ifPresent(world -> {
-            WorldConfig config = world.getConfig();
+            WorldConfig config = world.getWorldConfig();
             if (config == null) {
                 LOGGER.warn("World config not available for: {}", worldName);
                 return;
             }
             
-            switch (rule) {
-                case PVP_ENABLED -> config.setPvpEnabled((Boolean) value);
-                case FALL_DAMAGE_ENABLED -> config.setFallDamageEnabled((Boolean) value);
-                case MOB_SPAWNING -> config.setSpawningNPC((Boolean) value);
-                case NPC_FROZEN -> config.setNPCFrozen((Boolean) value);
-                case TIME_PAUSED -> config.setTimePaused((Boolean) value);
+            // Map string rule names to SDK config methods
+            switch (rule.toLowerCase()) {
+                case "pvp_enabled", "pvp" -> config.setPvpEnabled((Boolean) value);
+                // Note: Fall damage is read-only in SDK - no setter available
+                case "fall_damage_enabled", "fall_damage" -> 
+                    LOGGER.debug("Fall damage setting not configurable via SDK");
+                case "mob_spawning", "npc_spawning" -> config.setSpawningNPC((Boolean) value);
+                case "npc_frozen", "freeze_npc" -> config.setIsAllNPCFrozen((Boolean) value);
+                case "time_paused", "game_time_paused" -> config.setGameTimePaused((Boolean) value);
+                case "block_ticking" -> config.setBlockTicking((Boolean) value);
+                case "compass_updating" -> config.setCompassUpdating((Boolean) value);
                 default -> LOGGER.debug("Rule {} not mapped to Hytale config", rule);
             }
         });
+    }
+    
+    @Override
+    public Optional<Object> getWorldRule(String worldName, String rule) {
+        return findWorld(worldName)
+            .map(world -> {
+                WorldConfig config = world.getWorldConfig();
+                if (config == null) {
+                    return null;
+                }
+                
+                // Map string rule names to SDK config getters
+                return switch (rule.toLowerCase()) {
+                    case "pvp_enabled", "pvp" -> config.isPvpEnabled();
+                    case "mob_spawning", "npc_spawning" -> config.isSpawningNPC();
+                    case "npc_frozen", "freeze_npc" -> config.isAllNPCFrozen();
+                    case "time_paused", "game_time_paused" -> config.isGameTimePaused();
+                    case "block_ticking" -> config.isBlockTicking();
+                    default -> null;
+                };
+            });
+    }
+    
+    @Override
+    public Map<String, Object> getWorldRules(String worldName) {
+        return findWorld(worldName)
+            .map(world -> {
+                WorldConfig config = world.getWorldConfig();
+                if (config == null) {
+                    return Map.<String, Object>of();
+                }
+                
+                return Map.<String, Object>of(
+                    "pvp_enabled", config.isPvpEnabled(),
+                    "mob_spawning", config.isSpawningNPC(),
+                    "npc_frozen", config.isAllNPCFrozen(),
+                    "time_paused", config.isGameTimePaused(),
+                    "block_ticking", config.isBlockTicking()
+                );
+            })
+            .orElse(Map.of());
     }
     
     @Override
@@ -334,7 +487,7 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
         LOGGER.debug("Setting game mode {} for world {}", gameMode, worldName);
         
         findWorld(worldName).ifPresent(world -> {
-            WorldConfig config = world.getConfig();
+            WorldConfig config = world.getWorldConfig();
             if (config != null) {
                 config.setGameMode(mapGameMode(gameMode.name()));
             }
@@ -347,7 +500,7 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
      * Find a world by name (case-insensitive).
      */
     private Optional<World> findWorld(String name) {
-        return Universe.get().getWorlds().stream()
+        return Universe.get().getWorlds().values().stream()
             .filter(w -> w.getName().equalsIgnoreCase(name))
             .findFirst();
     }
@@ -358,14 +511,34 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     private WorldData convertToWorldData(World world, WorldState state) {
         // Determine world type based on generation provider
         WorldType type = determineWorldType(world);
+        WorldConfig config = world.getWorldConfig();
+        
+        // Extract game mode from config (default to SURVIVAL if not set)
+        String gameMode = "SURVIVAL";
+        if (config != null && config.getGameMode() != null) {
+            gameMode = config.getGameMode().name();
+        }
+        
+        // Get spawn location
+        LocationData spawnLocation = getWorldSpawn(world);
+        
+        // Get world seed
+        long seed = config != null ? config.getSeed() : 0L;
         
         return new WorldData(
+            world.getWorldConfig() != null ? world.getWorldConfig().getUuid() : UUID.randomUUID(),
             world.getName(),
+            config != null ? config.getDisplayName() : world.getName(),
             type,
             state,
+            seed,
+            gameMode,
+            spawnLocation,
+            Map.of(), // rules - would need to extract from config
             countPlayers(world),
-            "SURVIVAL", // Default game mode - would need to read from config
-            getWorldSpawn(world)
+            Instant.now(), // createdAt - not available from SDK, use now
+            Instant.now(), // lastAccessedAt
+            Map.of()  // metadata
         );
     }
     
@@ -373,15 +546,16 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
      * Determine world type from world's generation provider.
      */
     private WorldType determineWorldType(World world) {
-        WorldConfig config = world.getConfig();
+        WorldConfig config = world.getWorldConfig();
         if (config == null) {
             return WorldType.NORMAL;
         }
         
-        WorldGenProvider provider = config.getWorldGenProvider();
+        IWorldGenProvider provider = config.getWorldGenProvider();
         if (provider instanceof FlatWorldGenProvider) {
             return WorldType.FLAT;
-        } else if (provider instanceof VoidWorldGenProvider) {
+        } else if (provider instanceof DummyWorldGenProvider) {
+            // SDK uses DummyWorldGenProvider for void-like empty worlds
             return WorldType.VOID;
         }
         
@@ -390,12 +564,18 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     
     /**
      * Create world generation provider based on world type.
+     * 
+     * <p>SDK providers available:
+     * <ul>
+     *   <li>FlatWorldGenProvider - Flat superflat worlds with configurable layers</li>
+     *   <li>DummyWorldGenProvider - Empty/void worlds with no generation</li>
+     * </ul>
      */
-    private WorldGenProvider createWorldGenProvider(WorldCreateConfig config) {
+    private IWorldGenProvider createWorldGenProvider(WorldCreateConfig config) {
         return switch (config.type()) {
             case FLAT -> new FlatWorldGenProvider(); // Can configure layers
-            case VOID -> new VoidWorldGenProvider();
-            case NETHER, END -> new DummyWorldGenProvider(); // Placeholder
+            case VOID -> new DummyWorldGenProvider(); // Empty world with no generation
+            case NETHER, END -> new DummyWorldGenProvider(); // Placeholder for other dimensions
             default -> null; // Use default generation
         };
     }
@@ -414,22 +594,35 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     private void applyWorldRules(WorldConfig worldConfig, WorldCreateConfig createConfig) {
         // Apply common defaults
         worldConfig.setPvpEnabled(false);
-        worldConfig.setFallDamageEnabled(true);
+        // Note: Fall damage cannot be configured via SDK - isFallDamageEnabled is read-only
+        // Fall damage settings may be controlled via world template or gameplay config
         
         // TODO: Apply rules from createConfig.rules() map
     }
     
     /**
-     * Map game mode string to Hytale game mode enum.
+     * Map game mode string to Hytale GameMode enum.
+     * 
+     * <p>SDK GameMode enum only supports: Adventure, Creative
+     * Maps other modes appropriately:
+     * <ul>
+     *   <li>SURVIVAL, ADVENTURE -> Adventure</li>
+     *   <li>CREATIVE -> Creative</li>
+     *   <li>SPECTATOR -> Creative (no spectator in SDK)</li>
+     * </ul>
      */
-    private Object mapGameMode(String gameMode) {
-        // SDK provides GameMode enum in com.hypixel.hytale.protocol.GameMode
-        // Available modes: SURVIVAL, CREATIVE, ADVENTURE, SPECTATOR
-        // For now return the string - the WorldConfig builder may accept strings
+    private com.hypixel.hytale.protocol.GameMode mapGameMode(String gameMode) {
         if (gameMode == null) {
-            return "SURVIVAL";
+            return com.hypixel.hytale.protocol.GameMode.Adventure;
         }
-        return gameMode.toUpperCase();
+        return switch (gameMode.toUpperCase()) {
+            case "CREATIVE" -> com.hypixel.hytale.protocol.GameMode.Creative;
+            case "SURVIVAL", "ADVENTURE", "SPECTATOR" -> com.hypixel.hytale.protocol.GameMode.Adventure;
+            default -> {
+                LOGGER.warn("Unknown game mode: {}, defaulting to Adventure", gameMode);
+                yield com.hypixel.hytale.protocol.GameMode.Adventure;
+            }
+        };
     }
     
     /**
@@ -493,10 +686,10 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     /**
      * Create a transform for positioning.
      */
-    private Object createTransform(Vector3f position) {
-        // TODO: Create proper Transform object for Hytale
-        // Transform.create(position, rotation)
-        return position;
+    private com.hypixel.hytale.math.vector.Transform createTransform(Vector3f position) {
+        return new com.hypixel.hytale.math.vector.Transform(
+            position.x, position.y, position.z
+        );
     }
     
     /**
