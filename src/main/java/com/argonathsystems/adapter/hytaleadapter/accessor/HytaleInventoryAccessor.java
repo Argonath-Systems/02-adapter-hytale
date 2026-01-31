@@ -276,6 +276,89 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
         inventory.clear();
         player.sendInventory();
     }
+
+    // ============================================================
+    // Container Operations (for instanced loot)
+    // ============================================================
+
+    // Thread-safe storage for per-player container contents
+    private final java.util.concurrent.ConcurrentHashMap<String, List<ItemData>> containerContentsCache = 
+        new java.util.concurrent.ConcurrentHashMap<>();
+
+    @Override
+    public List<ItemData> getContainerContents(UUID playerId, String containerId) {
+        String cacheKey = buildContainerCacheKey(playerId, containerId);
+        return containerContentsCache.getOrDefault(cacheKey, Collections.emptyList());
+    }
+
+    @Override
+    public void setContainerContents(UUID playerId, String containerId, List<ItemData> items) {
+        String cacheKey = buildContainerCacheKey(playerId, containerId);
+        if (items == null || items.isEmpty()) {
+            containerContentsCache.remove(cacheKey);
+        } else {
+            containerContentsCache.put(cacheKey, new ArrayList<>(items));
+        }
+        
+        // If player has the container open, update the view
+        Player player = getPlayer(playerId);
+        if (player != null) {
+            // TODO: Refresh open container view with updated contents
+            // This requires Hytale SDK container UI APIs
+        }
+    }
+
+    @Override
+    public void openContainer(UUID playerId, String containerId, String title, int size) {
+        Player player = getPlayer(playerId);
+        if (player == null) {
+            return;
+        }
+        
+        String cacheKey = buildContainerCacheKey(playerId, containerId);
+        List<ItemData> contents = containerContentsCache.getOrDefault(cacheKey, Collections.emptyList());
+        
+        // TODO: Open container UI using Hytale SDK
+        // This requires:
+        // 1. Creating a virtual container with the specified size
+        // 2. Populating it with the cached contents
+        // 3. Sending the container open packet to the player
+        //
+        // Example (when SDK is available):
+        // VirtualContainer container = VirtualContainer.create(title, size);
+        // for (int i = 0; i < contents.size() && i < size; i++) {
+        //     container.setItem(i, fromItemData(contents.get(i)));
+        // }
+        // player.openContainer(container);
+        
+        throw new UnsupportedOperationException(
+            "Container UI requires Hytale SDK virtual container APIs. " +
+            "Container ID: " + containerId + ", Title: " + title + ", Size: " + size
+        );
+    }
+
+    @Override
+    public void closeContainer(UUID playerId) {
+        Player player = getPlayer(playerId);
+        if (player == null) {
+            return;
+        }
+        
+        // TODO: Close any open container using Hytale SDK
+        // Example (when SDK is available):
+        // player.closeOpenContainer();
+        
+        throw new UnsupportedOperationException(
+            "Container close requires Hytale SDK container APIs."
+        );
+    }
+
+    /**
+     * Build a cache key for container contents.
+     */
+    private String buildContainerCacheKey(UUID playerId, String containerId) {
+        return playerId.toString() + ":" + containerId;
+    }
     
     // --- Helper Methods ---
     

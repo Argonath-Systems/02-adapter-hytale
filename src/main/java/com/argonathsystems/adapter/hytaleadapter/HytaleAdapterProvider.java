@@ -45,6 +45,9 @@ public class HytaleAdapterProvider implements AccessorProvider {
     private volatile WorldExecutor worldExecutor;
     private volatile InstanceAccessor instanceAccessor;
     private volatile ModelAnimationAccessor modelAnimationAccessor;
+    private volatile RenderAccessor renderAccessor;
+    private volatile ParticleAccessor particleAccessor;
+    private volatile BlockAccessor blockAccessor;
     
     public HytaleAdapterProvider(Object /* JavaPlugin */ server) {
         this.server = server;
@@ -285,6 +288,42 @@ public class HytaleAdapterProvider implements AccessorProvider {
             }
         }
         return modelAnimationAccessor;
+    }
+    
+    @Override
+    public RenderAccessor getRenderAccessor() {
+        if (renderAccessor == null) {
+            synchronized (this) {
+                if (renderAccessor == null) {
+                    renderAccessor = new HytaleRenderAccessor(server);
+                }
+            }
+        }
+        return renderAccessor;
+    }
+    
+    @Override
+    public ParticleAccessor getParticleAccessor() {
+        if (particleAccessor == null) {
+            synchronized (this) {
+                if (particleAccessor == null) {
+                    particleAccessor = new HytaleParticleAccessor(server);
+                }
+            }
+        }
+        return particleAccessor;
+    }
+    
+    @Override
+    public BlockAccessor getBlockAccessor() {
+        if (blockAccessor == null) {
+            synchronized (this) {
+                if (blockAccessor == null) {
+                    blockAccessor = new HytaleBlockAccessor(server);
+                }
+            }
+        }
+        return blockAccessor;
     }
     
     @Override

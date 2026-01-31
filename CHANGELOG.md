@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Block and Storage Accessor Extensions (2026-01-31)
+
+- **HytaleBlockAccessor** (`com.argonathsystems.adapter.hytaleadapter.accessor`):
+  - Implements `BlockAccessor` interface for Hytale SDK
+  - Container type detection with predefined types: chest, barrel, shulker_box, etc.
+  - Container size mapping (chest=27, large_chest=54, hopper=5, furnace=3, etc.)
+  - World lookup via `Universe.get().getDefaultWorld()` pattern
+  - Block type queries (stub mode - awaiting SDK block API)
+  - Spatial container queries for chunk and radius searches
+
+- **HytaleStorageAccessor Extensions**:
+  - Async object storage with `saveAsync()`, `loadAsync()`, `deleteAsync()`
+  - Async queries with `existsAsync()`, `findKeysAsync()`
+  - Object storage in `argonath_objects/` directory (separate from key-value storage)
+  - JSON file-based persistence with custom serialization functions
+  - Thread pool executor for non-blocking I/O operations
+  - `setLong()` / `getLong()` for long value storage
+  - `sanitizeKey()` helper for safe filenames
+
+- **HytaleAdapterProvider.getBlockAccessor()** - Lazy-initialized BlockAccessor getter
+
 ### Fixed - Comprehensive Adapter Audit Remediation (2026-01-31)
 
 - **HytaleMultiWorldAccessor Complete SDK Integration**:

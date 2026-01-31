@@ -8,9 +8,14 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Hytale implementation of StorageAccessor using file-based key-value storage.
@@ -46,13 +51,21 @@ public class HytaleStorageAccessor implements StorageAccessor {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(HytaleStorageAccessor.class);
     private static final String STORAGE_DIR = "argonath_data";
+    private static final String OBJECT_STORAGE_DIR = "argonath_objects";
     private static final String FILE_EXTENSION = ".properties";
+    private static final String JSON_EXTENSION = ".json";
     
     private final Object server;
     private final Path storagePath;
+    private final Path objectStoragePath;
     private final Map<String, Map<String, String>> cache = new ConcurrentHashMap<>();
     private final Map<String, ReadWriteLock> namespaceLocks = new ConcurrentHashMap<>();
     private final Map<String, Boolean> dirtyNamespaces = new ConcurrentHashMap<>();
+    private final ExecutorService asyncExecutor = Executors.newFixedThreadPool(2, r -> {
+        Thread t = new Thread(r, "ArgonathStorage-AsyncWorker");
+        t.setDaemon(true);
+        return t;
+    });
     
     public HytaleStorageAccessor(Object server) {
         this.server = server;
@@ -61,12 +74,15 @@ public class HytaleStorageAccessor implements StorageAccessor {
         // SDK PATTERN: Universe.get().getPath() for world directory
         // For now, use working directory
         this.storagePath = Paths.get(STORAGE_DIR);
+        this.objectStoragePath = Paths.get(OBJECT_STORAGE_DIR);
         
         try {
             Files.createDirectories(storagePath);
-            LOGGER.info("HytaleStorageAccessor initialized with storage path: {}", storagePath.toAbsolutePath());
+            Files.createDirectories(objectStoragePath);
+            LOGGER.info("HytaleStorageAccessor initialized with storage paths: {}, {}", 
+                storagePath.toAbsolutePath(), objectStoragePath.toAbsolutePath());
         } catch (IOException e) {
-            LOGGER.error("Failed to create storage directory", e);
+            LOGGER.error("Failed to create storage directories", e);
             throw new UnsupportedOperationException("Cannot initialize storage: " + e.getMessage(), e);
         }
     }
@@ -127,6 +143,25 @@ public class HytaleStorageAccessor implements StorageAccessor {
         });
     }
     
+    // ==================== Long Operations ====================
+    
+    @Override
+    public void setLong(String namespace, String key, long value) {
+        setString(namespace, key, String.valueOf(value));
+    }
+    
+    @Override
+    public Optional<Long> getLong(String namespace, String key) {
+        return getString(namespace, key).map(s -> {
+            try {
+                return Long.parseLong(s);
+            } catch (NumberFormatException e) {
+                LOGGER.warn("Invalid long value for {}:{}: {}", namespace, key, s);
+                return null;
+            }
+        });
+    }
+    
     // ==================== Key Management ====================
     
     @Override
@@ -175,6 +210,120 @@ public class HytaleStorageAccessor implements StorageAccessor {
         } finally {
             lock.readLock().unlock();
         }
+    }
+    
+    // ==================== Async Object Storage ====================
+    
+    @Override
+    public <T> CompletableFuture<Void> saveAsync(String namespace, String key, T value, Function<T, String> serializer) {
+        Objects.requireNonNull(namespace, "namespace cannot be null");
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(value, "value cannot be null");
+        Objects.requireNonNull(serializer, "serializer cannot be null");
+        
+        return CompletableFuture.runAsync(() -> {
+            Path namespacePath = objectStoragePath.resolve(sanitizeNamespace(namespace));
+            try {
+                Files.createDirectories(namespacePath);
+                Path filePath = namespacePath.resolve(sanitizeKey(key) + JSON_EXTENSION);
+                String content = serializer.apply(value);
+                Files.writeString(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                LOGGER.trace("Saved object {}:{} to {}", namespace, key, filePath);
+            } catch (IOException e) {
+                LOGGER.error("Failed to save object {}:{}", namespace, key, e);
+                throw new RuntimeException("Failed to save object: " + namespace + ":" + key, e);
+            }
+        }, asyncExecutor);
+    }
+    
+    @Override
+    public <T> CompletableFuture<Optional<T>> loadAsync(String namespace, String key, Function<String, T> deserializer) {
+        Objects.requireNonNull(namespace, "namespace cannot be null");
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(deserializer, "deserializer cannot be null");
+        
+        return CompletableFuture.supplyAsync(() -> {
+            Path filePath = objectStoragePath.resolve(sanitizeNamespace(namespace)).resolve(sanitizeKey(key) + JSON_EXTENSION);
+            
+            if (!Files.exists(filePath)) {
+                LOGGER.trace("Object not found: {}:{}", namespace, key);
+                return Optional.empty();
+            }
+            
+            try {
+                String content = Files.readString(filePath);
+                T result = deserializer.apply(content);
+                LOGGER.trace("Loaded object {}:{}", namespace, key);
+                return Optional.ofNullable(result);
+            } catch (IOException e) {
+                LOGGER.error("Failed to load object {}:{}", namespace, key, e);
+                return Optional.empty();
+            } catch (Exception e) {
+                LOGGER.error("Failed to deserialize object {}:{}", namespace, key, e);
+                return Optional.empty();
+            }
+        }, asyncExecutor);
+    }
+    
+    @Override
+    public CompletableFuture<Boolean> deleteAsync(String namespace, String key) {
+        Objects.requireNonNull(namespace, "namespace cannot be null");
+        Objects.requireNonNull(key, "key cannot be null");
+        
+        return CompletableFuture.supplyAsync(() -> {
+            Path filePath = objectStoragePath.resolve(sanitizeNamespace(namespace)).resolve(sanitizeKey(key) + JSON_EXTENSION);
+            
+            try {
+                boolean deleted = Files.deleteIfExists(filePath);
+                if (deleted) {
+                    LOGGER.trace("Deleted object {}:{}", namespace, key);
+                }
+                return deleted;
+            } catch (IOException e) {
+                LOGGER.error("Failed to delete object {}:{}", namespace, key, e);
+                return false;
+            }
+        }, asyncExecutor);
+    }
+    
+    @Override
+    public CompletableFuture<Boolean> existsAsync(String namespace, String key) {
+        Objects.requireNonNull(namespace, "namespace cannot be null");
+        Objects.requireNonNull(key, "key cannot be null");
+        
+        return CompletableFuture.supplyAsync(() -> {
+            Path filePath = objectStoragePath.resolve(sanitizeNamespace(namespace)).resolve(sanitizeKey(key) + JSON_EXTENSION);
+            return Files.exists(filePath);
+        }, asyncExecutor);
+    }
+    
+    @Override
+    public CompletableFuture<List<String>> findKeysAsync(String namespace, String keyPrefix) {
+        Objects.requireNonNull(namespace, "namespace cannot be null");
+        Objects.requireNonNull(keyPrefix, "keyPrefix cannot be null");
+        
+        return CompletableFuture.supplyAsync(() -> {
+            Path namespacePath = objectStoragePath.resolve(sanitizeNamespace(namespace));
+            
+            if (!Files.exists(namespacePath)) {
+                return List.of();
+            }
+            
+            String sanitizedPrefix = sanitizeKey(keyPrefix);
+            try (var stream = Files.list(namespacePath)) {
+                return stream
+                    .filter(p -> p.getFileName().toString().startsWith(sanitizedPrefix))
+                    .filter(p -> p.toString().endsWith(JSON_EXTENSION))
+                    .map(p -> {
+                        String name = p.getFileName().toString();
+                        return name.substring(0, name.length() - JSON_EXTENSION.length());
+                    })
+                    .collect(Collectors.toList());
+            } catch (IOException e) {
+                LOGGER.error("Failed to find keys in namespace: {}", namespace, e);
+                return List.of();
+            }
+        }, asyncExecutor);
     }
     
     // ==================== Internal Storage Operations ====================
@@ -228,6 +377,11 @@ public class HytaleStorageAccessor implements StorageAccessor {
     private String sanitizeNamespace(String namespace) {
         // Convert namespace to safe filename
         return namespace.replaceAll("[^a-zA-Z0-9_-]", "_");
+    }
+    
+    private String sanitizeKey(String key) {
+        // Convert key to safe filename, replacing special chars
+        return key.replaceAll("[^a-zA-Z0-9_.-]", "_");
     }
     
     // ==================== Lifecycle Management ====================
