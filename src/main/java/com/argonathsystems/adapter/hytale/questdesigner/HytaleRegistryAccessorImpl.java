@@ -122,18 +122,25 @@ public class HytaleRegistryAccessorImpl implements HytaleRegistryAccessor {
     private List<RegistryEntryDTO> loadItems() {
         List<RegistryEntryDTO> items = new ArrayList<>();
         try {
-            // TODO: Replace with actual Hytale ItemRegistry API calls when available
-            // itemRegistry.getAllItems().forEach(item -> {
-            //     items.add(new RegistryEntryDTO(
-            //         item.getId().toString(),
-            //         item.getId().getPath(),
-            //         item.getDisplayName(),
-            //         "textures/items/" + item.getId().getPath() + ".png",
-            //         item.getCategory()
-            //     ));
-            // });
+            // SDK PATTERN: AssetRegistry.getAssetStore(ItemType.class).getAssetMap()
+            //
+            // Example implementation when ItemType asset is confirmed:
+            // var itemStore = AssetRegistry.getAssetStore(ItemType.class);
+            // if (itemStore != null) {
+            //     itemStore.getAssetMap().getAssetMap().forEach((key, item) -> {
+            //         items.add(new RegistryEntryDTO(
+            //             key.toString(),                    // e.g., "hytale:sword_iron"
+            //             item.getId().toString(),           // path component
+            //             item.getDisplayName(),             // localized name
+            //             "textures/items/" + key + ".png", // icon path
+            //             item.getCategory()                 // category tag
+            //         ));
+            //     });
+            //     LOGGER.log(Level.INFO, "Loaded {0} items from AssetRegistry", items.size());
+            //     return items;
+            // }
             
-            // Stub data until Hytale API is finalized
+            // Fallback stub data - used until SDK asset types are confirmed
             items.add(new RegistryEntryDTO("hytale:sword_iron", "sword_iron", "Iron Sword", "textures/items/sword_iron.png", "weapons"));
             items.add(new RegistryEntryDTO("hytale:sword_steel", "sword_steel", "Steel Sword", "textures/items/sword_steel.png", "weapons"));
             items.add(new RegistryEntryDTO("hytale:bow_hunter", "bow_hunter", "Hunter's Bow", "textures/items/bow_hunter.png", "weapons"));
@@ -145,7 +152,7 @@ public class HytaleRegistryAccessorImpl implements HytaleRegistryAccessor {
             items.add(new RegistryEntryDTO("hytale:gem_ruby", "gem_ruby", "Ruby", "textures/items/gem_ruby.png", "materials"));
             items.add(new RegistryEntryDTO("hytale:armor_plate", "armor_plate", "Plate Armor", "textures/items/armor_plate.png", "armor"));
             
-            LOGGER.log(Level.FINE, "Loaded {0} items from registry", items.size());
+            LOGGER.log(Level.FINE, "Loaded {0} items from stub registry", items.size());
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Failed to load items from registry", e);
         }
@@ -155,18 +162,25 @@ public class HytaleRegistryAccessorImpl implements HytaleRegistryAccessor {
     private List<RegistryEntryDTO> loadEntities() {
         List<RegistryEntryDTO> entities = new ArrayList<>();
         try {
-            // TODO: Replace with actual Hytale EntityRegistry API calls when available
-            // entityRegistry.getAllEntityTypes().forEach(entityType -> {
-            //     entities.add(new RegistryEntryDTO(
-            //         entityType.getId().toString(),
-            //         entityType.getId().getPath(),
-            //         entityType.getDisplayName(),
-            //         "textures/entities/" + entityType.getId().getPath() + "_icon.png",
-            //         entityType.getCategory()
-            //     ));
-            // });
+            // SDK PATTERN: AssetRegistry.getAssetStore(EntityType.class).getAssetMap()
+            //
+            // Example implementation when EntityType asset store is accessible:
+            // var entityStore = AssetRegistry.getAssetStore(EntityType.class);
+            // if (entityStore != null) {
+            //     entityStore.getAssetMap().getAssetMap().forEach((key, entityType) -> {
+            //         entities.add(new RegistryEntryDTO(
+            //             key.toString(),                              // e.g., "hytale:kweebec"
+            //             entityType.getId().toString(),               // path component
+            //             entityType.getDisplayName(),                 // localized name
+            //             "textures/entities/" + key + "_icon.png",   // icon path
+            //             entityType.getCategory()                     // category tag
+            //         ));
+            //     });
+            //     LOGGER.log(Level.INFO, "Loaded {0} entities from AssetRegistry", entities.size());
+            //     return entities;
+            // }
             
-            // Stub data until Hytale API is finalized
+            // Fallback stub data - used until SDK asset types are confirmed
             entities.add(new RegistryEntryDTO("hytale:kweebec", "kweebec", "Kweebec", "textures/entities/kweebec_icon.png", "creatures"));
             entities.add(new RegistryEntryDTO("hytale:trork", "trork", "Trork", "textures/entities/trork_icon.png", "hostile"));
             entities.add(new RegistryEntryDTO("hytale:varyn_minion", "varyn_minion", "Varyn Minion", "textures/entities/varyn_minion_icon.png", "hostile"));
@@ -176,7 +190,7 @@ public class HytaleRegistryAccessorImpl implements HytaleRegistryAccessor {
             entities.add(new RegistryEntryDTO("hytale:sabretusk", "sabretusk", "Sabretusk", "textures/entities/sabretusk_icon.png", "creatures"));
             entities.add(new RegistryEntryDTO("hytale:undead_skeleton", "undead_skeleton", "Undead Skeleton", "textures/entities/undead_skeleton_icon.png", "undead"));
             
-            LOGGER.log(Level.FINE, "Loaded {0} entities from registry", entities.size());
+            LOGGER.log(Level.FINE, "Loaded {0} entities from stub registry", entities.size());
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Failed to load entities from registry", e);
         }
@@ -186,10 +200,27 @@ public class HytaleRegistryAccessorImpl implements HytaleRegistryAccessor {
     private List<RegistryEntryDTO> loadNPCs() {
         List<RegistryEntryDTO> npcs = new ArrayList<>();
         try {
-            // TODO: Replace with actual Hytale NPC registry API calls when available
-            // For now, NPCs might be a subset of entities or a separate system
+            // SDK PATTERN: NPCs may be a subset of EntityType or a separate NPC asset store
+            //
+            // Option 1 - If NPCs are separate asset type:
+            // var npcStore = AssetRegistry.getAssetStore(NpcType.class);
+            // if (npcStore != null) {
+            //     npcStore.getAssetMap().getAssetMap().forEach((key, npc) -> {
+            //         npcs.add(new RegistryEntryDTO(...));
+            //     });
+            // }
+            //
+            // Option 2 - Filter from EntityType by category:
+            // var entityStore = AssetRegistry.getAssetStore(EntityType.class);
+            // if (entityStore != null) {
+            //     entityStore.getAssetMap().getAssetMap().forEach((key, entityType) -> {
+            //         if ("npc".equals(entityType.getCategory())) {
+            //             npcs.add(new RegistryEntryDTO(...));
+            //         }
+            //     });
+            // }
             
-            // Stub data until Hytale API is finalized
+            // Fallback stub data - used until SDK NPC system is confirmed
             npcs.add(new RegistryEntryDTO("hytale:villager_blacksmith", "villager_blacksmith", "Village Blacksmith", "textures/npcs/villager_blacksmith.png", "villagers"));
             npcs.add(new RegistryEntryDTO("hytale:villager_merchant", "villager_merchant", "Village Merchant", "textures/npcs/villager_merchant.png", "villagers"));
             npcs.add(new RegistryEntryDTO("hytale:villager_elder", "villager_elder", "Village Elder", "textures/npcs/villager_elder.png", "villagers"));
@@ -198,7 +229,7 @@ public class HytaleRegistryAccessorImpl implements HytaleRegistryAccessor {
             npcs.add(new RegistryEntryDTO("hytale:trainer_combat", "trainer_combat", "Combat Trainer", "textures/npcs/trainer_combat.png", "trainers"));
             npcs.add(new RegistryEntryDTO("hytale:trainer_magic", "trainer_magic", "Magic Trainer", "textures/npcs/trainer_magic.png", "trainers"));
             
-            LOGGER.log(Level.FINE, "Loaded {0} NPCs from registry", npcs.size());
+            LOGGER.log(Level.FINE, "Loaded {0} NPCs from stub registry", npcs.size());
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Failed to load NPCs from registry", e);
         }
@@ -208,9 +239,31 @@ public class HytaleRegistryAccessorImpl implements HytaleRegistryAccessor {
     private List<RegistryEntryDTO> loadLocations() {
         List<RegistryEntryDTO> locations = new ArrayList<>();
         try {
-            // TODO: Replace with actual Hytale location/zone registry API calls when available
+            // SDK PATTERN: Locations/Zones via Biome asset store or Zone system
+            //
+            // Example implementation:
+            // var biomeStore = AssetRegistry.getAssetStore(Biome.class);
+            // if (biomeStore != null) {
+            //     biomeStore.getAssetMap().getAssetMap().forEach((key, biome) -> {
+            //         locations.add(new RegistryEntryDTO(
+            //             key.toString(),
+            //             biome.getId().toString(),
+            //             biome.getDisplayName(),
+            //             "textures/locations/" + key + ".png",
+            //             "biome"
+            //         ));
+            //     });
+            // }
+            //
+            // Zone system (if separate from biomes):
+            // Universe universe = HytaleServer.get().getUniverse();
+            // universe.getWorlds().forEach(world -> {
+            //     world.getZones().forEach(zone -> {
+            //         locations.add(new RegistryEntryDTO(...));
+            //     });
+            // });
             
-            // Stub data until Hytale API is finalized
+            // Fallback stub data - used until SDK zone/location system is confirmed
             locations.add(new RegistryEntryDTO("hytale:zone_orbis", "zone_orbis", "Orbis", "textures/locations/zone_orbis.png", "zones"));
             locations.add(new RegistryEntryDTO("hytale:zone_emerald_grove", "zone_emerald_grove", "Emerald Grove", "textures/locations/zone_emerald_grove.png", "zones"));
             locations.add(new RegistryEntryDTO("hytale:zone_howling_sands", "zone_howling_sands", "Howling Sands", "textures/locations/zone_howling_sands.png", "zones"));
@@ -219,7 +272,7 @@ public class HytaleRegistryAccessorImpl implements HytaleRegistryAccessor {
             locations.add(new RegistryEntryDTO("hytale:poi_dungeon_crypt", "poi_dungeon_crypt", "Ancient Crypt", "textures/locations/poi_dungeon.png", "poi"));
             locations.add(new RegistryEntryDTO("hytale:poi_tower_wizard", "poi_tower_wizard", "Wizard's Tower", "textures/locations/poi_tower.png", "poi"));
             
-            LOGGER.log(Level.FINE, "Loaded {0} locations from registry", locations.size());
+            LOGGER.log(Level.FINE, "Loaded {0} locations from stub registry", locations.size());
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Failed to load locations from registry", e);
         }

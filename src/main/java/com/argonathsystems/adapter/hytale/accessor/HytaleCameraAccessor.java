@@ -112,14 +112,27 @@ public class HytaleCameraAccessor implements CameraAccessor {
     
     @Override
     public void applyShake(UUID playerId, float intensity, long durationMs) {
-        // TODO: Implement camera shake when API available
-        // Could use either built-in shake or manual position offsets
+        // SDK PATTERN: Camera shake via CameraShake asset + packet
+        // 
+        // IMPLEMENTATION PATH (when server access is available):
+        // 1. Get or create CameraShake asset with desired intensity
+        //    CameraShake shake = CameraShake.getAssetMap().getAsset("standard_shake");
+        // 2. Convert to network packet
+        //    com.hypixel.hytale.protocol.CameraShake packet = shake.toPacket();
+        // 3. Send to player connection
+        //    PlayerRef player = getPlayerRef(playerId);
+        //    player.getConnection().send(new CameraShakePacket(packet, intensity, durationMs));
+        //
+        // The SDK supports both firstPerson and thirdPerson shake configurations.
+        //
+        // For now, track state internally for testing/debugging.
+        InternalCameraState state = getOrCreateState(playerId);
+        state.shakeIntensity = intensity;
+        state.shakeDurationMs = durationMs;
+        state.shakeStartTime = System.currentTimeMillis();
         
-        LOGGER.debug("Applied camera shake for player {} (intensity: {}, duration: {}ms) [STUB]", 
+        LOGGER.debug("Applied camera shake for player {} (intensity: {}, duration: {}ms) - requires SDK packet", 
             playerId, intensity, durationMs);
-        
-        // Stub implementation: Would schedule shake effect
-        // scheduler.schedule(() -> stopShake(playerId), durationMs, TimeUnit.MILLISECONDS)
     }
     
     @Override
@@ -253,8 +266,23 @@ public class HytaleCameraAccessor implements CameraAccessor {
         float dofFocalDistance = DEFAULT_DOF_DISTANCE;
         float dofAperture = DEFAULT_DOF_APERTURE;
         
+        // Shake state tracking
+        float shakeIntensity = 0;
+        long shakeDurationMs = 0;
+        long shakeStartTime = 0;
+        
         // Saved state for restoration
         Vector3 savedPosition;
         Vector2 savedRotation;
+        
+        /**
+         * Checks if shake effect is currently active.
+         */
+        boolean isShakeActive() {
+            if (shakeIntensity <= 0 || shakeDurationMs <= 0) {
+                return false;
+            }
+            return System.currentTimeMillis() - shakeStartTime < shakeDurationMs;
+        }
     }
 }

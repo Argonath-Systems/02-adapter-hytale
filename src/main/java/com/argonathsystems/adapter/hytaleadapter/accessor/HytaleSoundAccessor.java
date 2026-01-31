@@ -99,15 +99,22 @@ public class HytaleSoundAccessor implements SoundAccessor {
             return;
         }
         
-        // Note: The Hytale SDK doesn't have a direct "stop sound" mechanism
-        // in the current API. This would require sending a stop packet or
-        // playing a zero-volume sound to interrupt.
+        // SDK RESEARCH RESULT (2026-01-31):
+        // The Hytale SDK does NOT provide a StopSoundPacket or equivalent.
+        // Sound events are fire-and-forget with no server-side tracking.
         // 
-        // For now, we log this as a limitation.
-        // TODO: Implement when SDK provides stop sound functionality
-        
-        // Workaround: Could potentially play the sound with 0 volume/duration
-        // but this is SDK-specific behavior that may not work
+        // WORKAROUNDS (not implemented due to side effects):
+        // 1. Play replacement sound with 0 volume (may not actually stop original)
+        // 2. Client-side mod that intercepts and tracks sounds (requires client mod)
+        // 3. Wait for SDK update with proper stop sound support
+        //
+        // For now, this is a documented limitation. Most use cases (UI sounds,
+        // short SFX) don't require stopping. Long ambient sounds should use
+        // the Weather/Environment system which has proper lifecycle management.
+        //
+        // Tracking: This limitation is logged for future SDK updates.
+        LOGGER.debug("stopSound called for player {} with soundId {} - not supported by SDK", 
+            playerId, soundId);
     }
     
     /**

@@ -20,7 +20,12 @@ import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
@@ -141,8 +146,11 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
                 
                 // Delete files if requested
                 if (deleteFiles) {
-                    // TODO: Delete world directory from disk
-                    LOGGER.info("File deletion requested but not implemented");
+                    Path worldDir = Path.of("worlds", name);
+                    if (Files.exists(worldDir)) {
+                        deleteDirectoryRecursively(worldDir);
+                        LOGGER.info("Deleted world directory: {}", worldDir);
+                    }
                 }
                 
                 LOGGER.info("Successfully removed world: {}", name);
@@ -415,25 +423,61 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
      * Map game mode string to Hytale game mode enum.
      */
     private Object mapGameMode(String gameMode) {
-        // TODO: Map to actual Hytale GameMode enum when available
-        // For now return the string - implementation depends on SDK
-        return gameMode;
+        // SDK provides GameMode enum in com.hypixel.hytale.protocol.GameMode
+        // Available modes: SURVIVAL, CREATIVE, ADVENTURE, SPECTATOR
+        // For now return the string - the WorldConfig builder may accept strings
+        if (gameMode == null) {
+            return "SURVIVAL";
+        }
+        return gameMode.toUpperCase();
     }
     
     /**
      * Count players in a world.
+     * 
+     * SDK Pattern: Iterate through Universe.getPlayers() and filter by world
      */
     private int countPlayers(World world) {
-        // TODO: Implement when player tracking is available
-        return 0;
+        if (world == null) {
+            return 0;
+        }
+        try {
+            // Universe.get().getPlayers() returns all connected players
+            // Filter by checking each player's current world
+            int count = 0;
+            // Note: Actual implementation would be:
+            // for (PlayerRef player : Universe.get().getPlayers()) {
+            //     if (player.getWorld().equals(world)) count++;
+            // }
+            // For now, return 0 as player iteration API needs verification
+            return count;
+        } catch (Exception e) {
+            return 0;
+        }
     }
     
     /**
      * Get world spawn location.
+     * 
+     * SDK Pattern: WorldConfig contains spawn provider/position
      */
     private LocationData getWorldSpawn(World world) {
-        // TODO: Get actual spawn from world config/spawn provider
-        return new LocationData(world.getName(), 0, 64, 0, 0, 0);
+        if (world == null) {
+            return new LocationData("unknown", 0, 64, 0, 0, 0);
+        }
+        try {
+            WorldConfig config = world.getWorldConfig();
+            if (config != null) {
+                // SDK provides spawn via WorldConfig
+                // SpawnProvider spawnProvider = config.getSpawnProvider();
+                // Vector3d spawnPos = spawnProvider.getSpawnPosition(world);
+                // return new LocationData(world.getName(), spawnPos.x, spawnPos.y, spawnPos.z, 0, 0);
+            }
+            // Default fallback - center of world at Y=64
+            return new LocationData(world.getName(), 0, 64, 0, 0, 0);
+        } catch (Exception e) {
+            return new LocationData(world.getName(), 0, 64, 0, 0, 0);
+        }
     }
     
     /**
@@ -453,5 +497,35 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
         // TODO: Create proper Transform object for Hytale
         // Transform.create(position, rotation)
         return position;
+    }
+    
+    /**
+     * Recursively deletes a directory and all its contents.
+     * 
+     * @param directory The directory to delete
+     * @throws RuntimeException if deletion fails
+     */
+    private void deleteDirectoryRecursively(Path directory) {
+        try {
+            Files.walkFileTree(directory, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    Files.delete(file);
+                    return FileVisitResult.CONTINUE;
+                }
+                
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    if (exc != null) {
+                        throw exc;
+                    }
+                    Files.delete(dir);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            LOGGER.error("Failed to delete directory: {}", directory, e);
+            throw new RuntimeException("Failed to delete world directory: " + directory, e);
+        }
     }
 }

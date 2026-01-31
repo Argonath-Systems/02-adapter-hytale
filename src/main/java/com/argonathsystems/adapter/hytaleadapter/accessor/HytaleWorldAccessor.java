@@ -336,29 +336,159 @@ public class HytaleWorldAccessor implements WorldAccessor {
 
     @Override
     public Optional<LocationData> findSafeLocation(LocationData near, int radius) {
-        // TODO: Custom implementation with raycast/collision checking
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.findSafeLocation() requires custom implementation. " +
-            "Pattern: Iterate nearby positions, check for solid ground + air above."
-        );
+        if (near == null || radius <= 0) {
+            return Optional.empty();
+        }
+        
+        World world = near.world() != null ? Universe.get().getWorld(near.world()) : getWorld();
+        if (world == null) {
+            return Optional.empty();
+        }
+        
+        int centerX = (int) Math.floor(near.x());
+        int centerY = (int) Math.floor(near.y());
+        int centerZ = (int) Math.floor(near.z());
+        
+        // Spiral search pattern from center outward
+        for (int r = 0; r <= radius; r++) {
+            for (int x = -r; x <= r; x++) {
+                for (int z = -r; z <= r; z++) {
+                    // Only check outer ring at each radius
+                    if (r > 0 && Math.abs(x) != r && Math.abs(z) != r) {
+                        continue;
+                    }
+                    
+                    int checkX = centerX + x;
+                    int checkZ = centerZ + z;
+                    
+                    // Search vertically around the center Y
+                    for (int dy = 0; dy <= 10; dy++) {
+                        // Check both above and below
+                        for (int yDir : new int[]{dy, -dy}) {
+                            if (dy == 0 && yDir < 0) continue; // Skip duplicate check at dy=0
+                            
+                            int checkY = centerY + yDir;
+                            if (checkY < 0 || checkY > 255) continue;
+                            
+                            // Check for safe location: solid ground + 2 air blocks above
+                            if (isSolidBlock(world, checkX, checkY, checkZ) &&
+                                !isSolidBlock(world, checkX, checkY + 1, checkZ) &&
+                                !isSolidBlock(world, checkX, checkY + 2, checkZ)) {
+                                
+                                // Found safe location - return position on top of solid block
+                                return Optional.of(new LocationData(
+                                    near.world(),
+                                    checkX + 0.5,
+                                    checkY + 1.0,
+                                    checkZ + 0.5,
+                                    near.yaw(),
+                                    near.pitch()
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return Optional.empty();
+    }
+    
+    /**
+     * Checks if a block at the given position is solid (non-air).
+     */
+    private boolean isSolidBlock(World world, int x, int y, int z) {
+        if (y < 0 || y > 255) {
+            return false;
+        }
+        
+        try {
+            int chunkX = x >> 4;
+            int chunkZ = z >> 4;
+            long chunkKey = ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
+            
+            WorldChunk chunk = world.getChunkIfLoaded(chunkKey);
+            if (chunk == null) {
+                return false; // Treat unloaded chunks as non-solid
+            }
+            
+            int localX = x & 15;
+            int localZ = z & 15;
+            int blockId = chunk.getBlock(localX, y, localZ);
+            
+            // Block ID 0 is typically air
+            return blockId != 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override
-    public CompletableFuture<Boolean> generateChunk(int x, int z) {
-        // TODO: Implement via ChunkStore
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.generateChunk() requires ChunkStore integration. " +
-            "Pattern: world.getChunkAsync(ChunkStore.key(x, z))"
-        );
+    public CompletableFuture<Boolean> generateChunk(int chunkX, int chunkZ) {
+        World world = getWorld();
+        if (world == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                long chunkKey = ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
+                
+                // Check if already loaded
+                WorldChunk existing = world.getChunkIfLoaded(chunkKey);
+                if (existing != null) {
+                    return true; // Already loaded
+                }
+                
+                // Request chunk load/generation
+                // Note: getChunk() may trigger generation if not present
+                // This is a blocking call - for async behavior, use world.execute()
+                world.execute(() -> {
+                    try {
+                        // Access chunk - this triggers loading/generation
+                        world.getChunk(chunkKey);
+                    } catch (Exception e) {
+                        // Chunk generation may fail for edge-of-world chunks
+                    }
+                });
+                
+                // Verify chunk is now loaded
+                return world.getChunkIfLoaded(chunkKey) != null;
+            } catch (Exception e) {
+                return false;
+            }
+        });
     }
 
     @Override
-    public boolean unloadChunk(int x, int z) {
-        // TODO: Implement via ChunkStore
-        throw new UnsupportedOperationException(
-            "HytaleWorldAccessor.unloadChunk() requires ChunkStore integration. " +
-            "Research needed: Chunk unload mechanism."
-        );
+    public boolean unloadChunk(int chunkX, int chunkZ) {
+        World world = getWorld();
+        if (world == null) {
+            return false;
+        }
+        
+        try {
+            long chunkKey = ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
+            
+            WorldChunk chunk = world.getChunkIfLoaded(chunkKey);
+            if (chunk == null) {
+                return true; // Already unloaded
+            }
+            
+            // SDK Note: Hytale's chunk lifecycle is managed automatically
+            // based on player proximity. Manual unloading may not be supported
+            // or may be overridden by the chunk manager.
+            //
+            // For now, we mark this as a limitation. The chunk system will
+            // automatically unload chunks when no players are nearby.
+            //
+            // If explicit unload is needed, research ChunkStore.unloadChunk()
+            // or similar API when available.
+            
+            return false; // Explicit unload not supported
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override

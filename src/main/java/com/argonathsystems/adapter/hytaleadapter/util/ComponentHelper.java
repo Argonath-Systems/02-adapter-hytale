@@ -1,18 +1,125 @@
 package com.argonathsystems.adapter.hytaleadapter.util;
 
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.entity.Entity;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
 import java.util.Optional;
 
 /**
- * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ * Helper for ECS component access in Hytale's Entity-Component-System architecture.
  * 
- * <p>Helper for ECS component access.</p>
- * <p>All methods throw UnsupportedOperationException until the SDK is available.</p>
+ * <p><b>MIGRATION-001 Status:</b> ✅ IMPLEMENTED</p>
+ * 
+ * <p>Hytale uses an ECS pattern where entities are composed of components.
+ * This helper provides safe, null-checked component access.</p>
+ * 
+ * <h2>SDK Pattern</h2>
+ * <pre>{@code
+ * // Direct SDK usage:
+ * Ref<EntityStore> ref = entity.getReference();
+ * if (ref.has(componentType)) {
+ *     Component comp = ref.get(componentType);
+ * }
+ * 
+ * // Using this helper:
+ * Optional<Component> comp = ComponentHelper.getComponent(entity, componentType);
+ * }</pre>
+ * 
+ * @author Argonath Systems Team
+ * @version 1.1.0
+ * @since MIGRATION-001
  */
 public class ComponentHelper {
-    public static <T> Optional<T> getComponent(Object entity, Class<T> componentClass) {
-        throw new UnsupportedOperationException(
-            "ComponentHelper.getComponent() requires official Hytale SDK: " +
-            "Entity.getComponent(componentClass)"
-        );
+    
+    /**
+     * Gets a component from an entity using the ECS pattern.
+     * 
+     * @param <T> The component type
+     * @param entity The entity to get the component from
+     * @param componentType The ComponentType descriptor
+     * @return Optional containing the component, or empty if not present
+     */
+    public static <T> Optional<T> getComponent(Entity entity, ComponentType<EntityStore, T> componentType) {
+        if (entity == null || componentType == null) {
+            return Optional.empty();
+        }
+        
+        try {
+            Ref<EntityStore> ref = entity.getReference();
+            if (ref == null) {
+                return Optional.empty();
+            }
+            
+            if (ref.has(componentType)) {
+                return Optional.ofNullable(ref.get(componentType));
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            // Component access can fail if entity is being removed
+            return Optional.empty();
+        }
+    }
+    
+    /**
+     * Gets a component from an entity reference.
+     * 
+     * @param <T> The component type
+     * @param entityRef The entity reference
+     * @param componentType The ComponentType descriptor
+     * @return Optional containing the component, or empty if not present
+     */
+    public static <T> Optional<T> getComponent(Ref<EntityStore> entityRef, ComponentType<EntityStore, T> componentType) {
+        if (entityRef == null || componentType == null) {
+            return Optional.empty();
+        }
+        
+        try {
+            if (entityRef.has(componentType)) {
+                return Optional.ofNullable(entityRef.get(componentType));
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+    
+    /**
+     * Checks if an entity has a specific component.
+     * 
+     * @param <T> The component type
+     * @param entity The entity to check
+     * @param componentType The ComponentType descriptor
+     * @return true if the entity has the component
+     */
+    public static <T> boolean hasComponent(Entity entity, ComponentType<EntityStore, T> componentType) {
+        if (entity == null || componentType == null) {
+            return false;
+        }
+        
+        try {
+            Ref<EntityStore> ref = entity.getReference();
+            return ref != null && ref.has(componentType);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Gets a component or throws if not present.
+     * Use when component is required and absence is an error.
+     * 
+     * @param <T> The component type
+     * @param entity The entity
+     * @param componentType The ComponentType descriptor
+     * @return The component (never null)
+     * @throws IllegalStateException if component is not present
+     */
+    public static <T> T requireComponent(Entity entity, ComponentType<EntityStore, T> componentType) {
+        return getComponent(entity, componentType)
+            .orElseThrow(() -> new IllegalStateException(
+                "Required component " + componentType + " not found on entity " + entity
+            ));
     }
 }

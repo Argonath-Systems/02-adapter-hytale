@@ -107,6 +107,13 @@
             <version>2.11.0</version>
         </dependency>
         
+        <!-- BSON for entity metadata conversion (Hytale uses BSON internally) -->
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>bson</artifactId>
+            <version>5.2.1</version>
+        </dependency>
+        
         <!-- =====================================================
              HyUI LIBRARY (for UI rendering)
              ✅ Only in adapter layer
