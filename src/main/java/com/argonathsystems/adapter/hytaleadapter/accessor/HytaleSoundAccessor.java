@@ -99,6 +99,7 @@ public class HytaleSoundAccessor implements SoundAccessor {
 
     @Override 
     public void stopSound(UUID playerId, String soundId) {
+        // TODO
         if (playerId == null) {
             return;
         }
@@ -129,6 +130,7 @@ public class HytaleSoundAccessor implements SoundAccessor {
      * @return The internal sound event index, or -1 if not found
      */
     private int resolveSoundIndex(String soundId) {
+        // TODO
         return soundIndexCache.computeIfAbsent(soundId, id -> {
             // In production, this would look up the sound in the asset registry:
             // AssetRegistry.getAssetStore(SoundEvent.class).getAssetMap().getAsset(id).getIndex()
@@ -143,6 +145,7 @@ public class HytaleSoundAccessor implements SoundAccessor {
      * Broadcast a 3D sound packet to players in range.
      */
     private void broadcastSoundPacket(PlaySoundEvent3D packet, LocationData location) {
+        // TODO
         // In production:
         // 1. Get the world from location.world()
         // 2. Find all players within hearing range
@@ -159,6 +162,7 @@ public class HytaleSoundAccessor implements SoundAccessor {
      * Send a sound packet to a specific player.
      */
     private void sendSoundPacketToPlayer(UUID playerId, Object packet) {
+        // TODO
         // In production:
         // Player player = server.getPlayer(playerId);
         // if (player != null) {
