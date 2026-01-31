@@ -91,6 +91,13 @@
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
         
+        <!-- NPC Framework - NPC models, behaviors, and animation triggers -->
+        <dependency>
+            <groupId>com.argonathsystems.framework</groupId>
+            <artifactId>argonath-prancing-pony-npc</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        
         <!-- Nitrado WebServer Plugin - Shared HTTP server for Hytale plugins -->
         <dependency>
             <groupId>net.nitrado.hytale.plugins</groupId>

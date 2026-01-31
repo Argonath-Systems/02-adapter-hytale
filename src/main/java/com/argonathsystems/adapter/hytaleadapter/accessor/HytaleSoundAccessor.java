@@ -8,6 +8,8 @@ import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.SoundCategory;
 import com.hypixel.hytale.protocol.packets.world.PlaySoundEvent2D;
 import com.hypixel.hytale.protocol.packets.world.PlaySoundEvent3D;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.UUID;
@@ -32,6 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @since MIGRATION-001
  */
 public class HytaleSoundAccessor implements SoundAccessor {
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(HytaleSoundAccessor.class);
     
     private final Object server;
     

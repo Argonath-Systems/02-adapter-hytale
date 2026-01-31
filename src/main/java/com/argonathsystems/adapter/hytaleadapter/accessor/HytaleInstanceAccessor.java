@@ -3,6 +3,7 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 import com.argonathsystems.framework.accessorapi.InstanceAccessor;
 import com.argonathsystems.framework.accessorapi.data.DataValue;
 import com.argonathsystems.framework.accessorapi.dto.InstanceData;
+import com.argonathsystems.framework.accessorapi.dto.InstanceData.InstanceState;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,27 +66,46 @@ public class HytaleInstanceAccessor implements InstanceAccessor {
         final UUID instanceId;
         final String instanceType;
         final String worldName;
+        final UUID ownerId;
+        final int maxPlayers;
+        final LocationData spawnLocation;
+        final LocationData returnLocation;
         final Instant createdAt;
         Instant expiresAt;
+        InstanceState state = InstanceState.ACTIVE;
         final Map<String, DataValue> metadata = new ConcurrentHashMap<>();
         final Set<UUID> players = ConcurrentHashMap.newKeySet();
         
-        InstanceRecord(UUID instanceId, String instanceType, String worldName, Duration timeout) {
+        InstanceRecord(UUID instanceId, String instanceType, String worldName, UUID ownerId,
+                       int maxPlayers, LocationData spawnLocation, LocationData returnLocation,
+                       Duration timeout, Map<String, DataValue> initialMetadata) {
             this.instanceId = instanceId;
             this.instanceType = instanceType;
             this.worldName = worldName;
+            this.ownerId = ownerId;
+            this.maxPlayers = maxPlayers;
+            this.spawnLocation = spawnLocation;
+            this.returnLocation = returnLocation;
             this.createdAt = Instant.now();
             this.expiresAt = timeout != null ? createdAt.plus(timeout) : null;
+            if (initialMetadata != null) {
+                this.metadata.putAll(initialMetadata);
+            }
         }
         
         InstanceData toInstanceData() {
             return new InstanceData(
                 instanceId,
-                instanceType,
                 worldName,
+                instanceType,
+                ownerId,
+                state,
+                new HashSet<>(players),
+                maxPlayers,
                 createdAt,
                 expiresAt,
-                new HashSet<>(players),
+                spawnLocation,
+                returnLocation,
                 new HashMap<>(metadata)
             );
         }
@@ -101,26 +121,24 @@ public class HytaleInstanceAccessor implements InstanceAccessor {
     @Override
     public CompletableFuture<Optional<InstanceData>> createInstance(InstanceConfig config) {
         UUID instanceId = UUID.randomUUID();
-        String worldName = "instance_" + config.getType() + "_" + instanceId.toString().substring(0, 8);
+        String worldName = "instance_" + config.instanceType() + "_" + instanceId.toString().substring(0, 8);
         
-        LOGGER.info("Creating instance: type={}, worldName={}", config.getType(), worldName);
+        LOGGER.info("Creating instance: type={}, worldName={}", config.instanceType(), worldName);
         
         // SDK PATTERN: Universe.get().addWorld(worldName, worldgenConfig, seedConfig)
         //
         // Implementation when Universe is accessible:
         // try {
         //     Universe universe = Universe.get();
-        //     return universe.addWorld(worldName, config.getWorldGenConfig(), config.getSeed())
+        //     return universe.addWorld(worldName, config.templateWorld(), null)
         //         .thenApply(world -> {
         //             InstanceRecord record = new InstanceRecord(
-        //                 instanceId, config.getType(), worldName, config.getTimeout()
+        //                 instanceId, config.instanceType(), worldName,
+        //                 config.ownerId(), config.maxPlayers(),
+        //                 config.spawnLocation(), config.returnLocation(),
+        //                 config.duration(), config.metadata()
         //             );
         //             instances.put(instanceId, record);
-        //             
-        //             // Apply any initial metadata
-        //             if (config.getInitialMetadata() != null) {
-        //                 record.metadata.putAll(config.getInitialMetadata());
-        //             }
         //             
         //             LOGGER.info("Instance created successfully: {}", instanceId);
         //             return Optional.of(record.toInstanceData());
@@ -136,7 +154,10 @@ public class HytaleInstanceAccessor implements InstanceAccessor {
         
         // Internal tracking (stub until Universe integration)
         InstanceRecord record = new InstanceRecord(
-            instanceId, config.getType(), worldName, config.getTimeout()
+            instanceId, config.instanceType(), worldName,
+            config.ownerId(), config.maxPlayers(),
+            config.spawnLocation(), config.returnLocation(),
+            config.duration(), config.metadata()
         );
         instances.put(instanceId, record);
         
