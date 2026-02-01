@@ -130,17 +130,16 @@ public class HytaleModelAccessor implements ModelAccessor {
                 return;
             }
             
-            Store<EntityStore> store = world.getEntityStore();
-            ComponentAccessor<EntityStore> accessor = store.getComponentAccessor();
+            Store<EntityStore> store = world.getEntityStore().getStore();
+            // Store implements ComponentAccessor<EntityStore> directly
             
             // Use FULL_BODY slot by default for general animations
             AnimationUtils.playAnimation(
                 ref.entityRef,
-                AnimationSlot.FULL_BODY,
+                AnimationSlot.Action,
                 animationId,
                 loop,
-                accessor
-            );
+                store);
             
             LOGGER.debug("Playing animation '{}' on entity {} (loop={})", animationId, entityId, loop);
             
@@ -164,15 +163,14 @@ public class HytaleModelAccessor implements ModelAccessor {
                 return;
             }
             
-            Store<EntityStore> store = world.getEntityStore();
-            ComponentAccessor<EntityStore> accessor = store.getComponentAccessor();
+            Store<EntityStore> store = world.getEntityStore().getStore();
+            // Store implements ComponentAccessor<EntityStore> directly
             
             // Stop animation by slot
             AnimationUtils.stopAnimation(
                 ref.entityRef,
-                AnimationSlot.FULL_BODY,
-                accessor
-            );
+                AnimationSlot.Action,
+                store);
             
             LOGGER.debug("Stopped animation on entity {}", entityId);
             
@@ -195,13 +193,13 @@ public class HytaleModelAccessor implements ModelAccessor {
                 return;
             }
             
-            Store<EntityStore> store = world.getEntityStore();
-            ComponentAccessor<EntityStore> accessor = store.getComponentAccessor();
+            Store<EntityStore> store = world.getEntityStore().getStore();
+            // Store implements ComponentAccessor<EntityStore> directly
             
             // Stop animations on all slots
             for (AnimationSlot slot : AnimationSlot.values()) {
                 try {
-                    AnimationUtils.stopAnimation(ref.entityRef, slot, accessor);
+                    AnimationUtils.stopAnimation(ref.entityRef, slot, store);
                 } catch (Exception e) {
                     // Ignore if slot has no active animation
                 }
@@ -272,10 +270,10 @@ public class HytaleModelAccessor implements ModelAccessor {
                 return;
             }
             
-            Store<EntityStore> store = world.getEntityStore();
+            Store<EntityStore> store = world.getEntityStore().getStore();
             
-            // Get or create EntityScaleComponent
-            EntityScaleComponent scaleComponent = store.get(
+            // Get EntityScaleComponent via EntityStore
+            EntityScaleComponent scaleComponent = store.getComponent(
                 ref.entityRef,
                 EntityScaleComponent.getComponentType()
             );
@@ -325,20 +323,19 @@ public class HytaleModelAccessor implements ModelAccessor {
                 return null;
             }
             
-            // Try by name first
-            for (World world : universe.getWorlds()) {
-                if (world.getConfig().getName().equals(worldId)) {
+            // Try by name first - getWorlds() returns Map<String, World>
+            for (World world : universe.getWorlds().values()) {
+                if (world.getName().equals(worldId)) {
                     return world;
                 }
             }
             
-            // Try by UUID
+            // Try by UUID using Universe.getWorld(UUID) directly
             try {
                 UUID uuid = UUID.fromString(worldId);
-                for (World world : universe.getWorlds()) {
-                    if (world.getUuid().equals(uuid)) {
-                        return world;
-                    }
+                World world = universe.getWorld(uuid);
+                if (world != null) {
+                    return world;
                 }
             } catch (IllegalArgumentException e) {
                 // Not a valid UUID, already tried name
@@ -366,12 +363,14 @@ public class HytaleModelAccessor implements ModelAccessor {
                 return null;
             }
             
-            for (World world : universe.getWorlds()) {
+            // getWorlds() returns Map<String, World>, iterate over values
+            for (World world : universe.getWorlds().values()) {
                 Entity entity = world.getEntity(entityId);
                 if (entity != null) {
-                    String worldId = world.getConfig().getName();
+                    String worldId = world.getName();
                     EntityReference ref = new EntityReference(entityId, worldId);
-                    ref.entityRef = entity.getRef();
+                    // Use World.getEntityRef(UUID) instead of entity.getRef()
+                    ref.entityRef = world.getEntityRef(entityId);
                     entityCache.put(entityId, ref);
                     return ref;
                 }

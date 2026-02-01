@@ -46,27 +46,32 @@ public class ItemDataConverter {
         try {
             String itemId = itemStack.getItemId();
             int quantity = itemStack.getQuantity();
-            int durability = itemStack.getDurability();
+            // getDurability() returns double, safely convert to int
+            int durability = (int) Math.round(itemStack.getDurability());
+            int maxDurability = (int) Math.round(itemStack.getMaxDurability());
             
             // Extract metadata from BsonDocument
-            Map<String, DataValue> metadata = new HashMap<>();
+            Map<String, DataValue> customData = new HashMap<>();
             BsonDocument bsonMeta = itemStack.getMetadata();
             
             if (bsonMeta != null) {
                 for (Map.Entry<String, BsonValue> entry : bsonMeta.entrySet()) {
                     DataValue value = bsonValueToDataValue(entry.getValue());
                     if (value != null) {
-                        metadata.put(entry.getKey(), value);
+                        customData.put(entry.getKey(), value);
                     }
                 }
             }
             
-            // Add durability as metadata if non-zero
-            if (durability > 0) {
-                metadata.put("durability", DataValue.of(durability));
-            }
-            
-            return new ItemData(itemId, quantity, metadata);
+            // Use full 6-argument constructor with all fields
+            return new ItemData(
+                java.util.UUID.randomUUID(),  // Generate unique instance ID
+                itemId,
+                quantity,
+                durability,
+                maxDurability,
+                customData
+            );
             
         } catch (Exception e) {
             LOGGER.warn("Failed to convert ItemStack to DTO: {}", e.getMessage());

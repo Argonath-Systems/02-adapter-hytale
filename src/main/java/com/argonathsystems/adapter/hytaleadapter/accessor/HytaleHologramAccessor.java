@@ -283,20 +283,19 @@ public class HytaleHologramAccessor implements HologramAccessor {
                 return null;
             }
             
-            // Try by name first
-            for (World world : universe.getWorlds()) {
-                if (world.getConfig().getName().equals(worldId)) {
+            // Try by name first - getWorlds() returns Map<String, World>
+            for (World world : universe.getWorlds().values()) {
+                if (world.getName().equals(worldId)) {
                     return world;
                 }
             }
             
-            // Try by UUID
+            // Try by UUID using Universe.getWorld(UUID) directly
             try {
                 UUID uuid = UUID.fromString(worldId);
-                for (World world : universe.getWorlds()) {
-                    if (world.getUuid().equals(uuid)) {
-                        return world;
-                    }
+                World world = universe.getWorld(uuid);
+                if (world != null) {
+                    return world;
                 }
             } catch (IllegalArgumentException e) {
                 // Not a valid UUID, already tried name
