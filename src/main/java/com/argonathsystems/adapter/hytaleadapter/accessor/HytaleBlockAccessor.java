@@ -191,8 +191,7 @@ public class HytaleBlockAccessor implements BlockAccessor {
     
     @Override
     public boolean isContainer(String worldId, int x, int y, int z) {
-        // TODO: Implement when block type query is available
-        // For now, check against known container types
+        // Use block type query to check against known container types
         String blockType = getBlockTypeInternal(worldId, x, y, z);
         return CONTAINER_TYPES.contains(blockType);
     }
@@ -214,19 +213,119 @@ public class HytaleBlockAccessor implements BlockAccessor {
     
     @Override
     public List<LocationData> getContainersInChunk(String worldId, int chunkX, int chunkZ) {
-        // TODO: Implement chunk scanning when block iteration API is available
-        // SDK PATTERN: Iterate blocks in WorldChunk, check for container types
-        LOGGER.debug("getContainersInChunk called for world={}, chunk=({}, {})", worldId, chunkX, chunkZ);
-        return List.of(); // Return empty until SDK support
+        World world = getWorld(worldId);
+        if (world == null) {
+            LOGGER.debug("World not found for getContainersInChunk: {}", worldId);
+            return List.of();
+        }
+        
+        long chunkIndex = packChunkIndex(chunkX, chunkZ);
+        WorldChunk chunk = world.getChunk(chunkIndex);
+        if (chunk == null) {
+            LOGGER.debug("Chunk not loaded at ({}, {})", chunkX, chunkZ);
+            return List.of();
+        }
+        
+        List<LocationData> containers = new ArrayList<>();
+        int baseX = chunkX << 4;
+        int baseZ = chunkZ << 4;
+        
+        // Iterate through all blocks in the chunk
+        // Chunks are 16x16 horizontally, with variable height (typically 0-255)
+        for (int localX = 0; localX < 16; localX++) {
+            for (int localZ = 0; localZ < 16; localZ++) {
+                for (int y = 0; y < 256; y++) {
+                    try {
+                        var blockType = chunk.getBlockType(localX, y, localZ);
+                        if (blockType != null) {
+                            String typeId = (String) blockType.getId();
+                            if (CONTAINER_TYPES.contains(typeId)) {
+                                int globalX = baseX + localX;
+                                int globalZ = baseZ + localZ;
+                                containers.add(new LocationData(worldId, globalX, y, globalZ, 0, 0));
+                            }
+                        }
+                    } catch (Exception e) {
+                        // Skip blocks that can't be read
+                        LOGGER.trace("Error reading block at local ({}, {}, {}): {}", localX, y, localZ, e.getMessage());
+                    }
+                }
+            }
+        }
+        
+        LOGGER.debug("Found {} containers in chunk ({}, {}) of world {}", containers.size(), chunkX, chunkZ, worldId);
+        return containers;
     }
     
     @Override
     public List<LocationData> getContainersInRadius(String worldId, int centerX, int centerY, int centerZ, int radius) {
-        // TODO: Implement spatial search when block API is available
-        // This could be optimized with spatial indexing
-        LOGGER.debug("getContainersInRadius called for world={}, center=({}, {}, {}), radius={}", 
-            worldId, centerX, centerY, centerZ, radius);
-        return List.of(); // Return empty until SDK support
+        World world = getWorld(worldId);
+        if (world == null) {
+            LOGGER.debug("World not found for getContainersInRadius: {}", worldId);
+            return List.of();
+        }
+        
+        List<LocationData> containers = new ArrayList<>();
+        int radiusSquared = radius * radius;
+        
+        // Calculate chunk range
+        int minChunkX = (centerX - radius) >> 4;
+        int maxChunkX = (centerX + radius) >> 4;
+        int minChunkZ = (centerZ - radius) >> 4;
+        int maxChunkZ = (centerZ + radius) >> 4;
+        
+        // Y bounds
+        int minY = Math.max(0, centerY - radius);
+        int maxY = Math.min(255, centerY + radius);
+        
+        // Iterate through relevant chunks
+        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+            for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+                long chunkIndex = packChunkIndex(cx, cz);
+                WorldChunk chunk = world.getChunk(chunkIndex);
+                if (chunk == null) {
+                    continue;
+                }
+                
+                int baseX = cx << 4;
+                int baseZ = cz << 4;
+                
+                for (int localX = 0; localX < 16; localX++) {
+                    int globalX = baseX + localX;
+                    int dx = globalX - centerX;
+                    
+                    for (int localZ = 0; localZ < 16; localZ++) {
+                        int globalZ = baseZ + localZ;
+                        int dz = globalZ - centerZ;
+                        
+                        for (int y = minY; y <= maxY; y++) {
+                            int dy = y - centerY;
+                            
+                            // Check distance
+                            if (dx * dx + dy * dy + dz * dz > radiusSquared) {
+                                continue;
+                            }
+                            
+                            try {
+                                var blockType = chunk.getBlockType(localX, y, localZ);
+                                if (blockType != null) {
+                                    String typeId = (String) blockType.getId();
+                                    if (CONTAINER_TYPES.contains(typeId)) {
+                                        containers.add(new LocationData(worldId, globalX, y, globalZ, 0, 0));
+                                    }
+                                }
+                            } catch (Exception e) {
+                                // Skip unreadable blocks
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        LOGGER.debug("Found {} containers within radius {} of ({}, {}, {}) in world {}", 
+            containers.size(), radius, centerX, centerY, centerZ, worldId);
+        return containers;
     }
     
     @Override
@@ -242,11 +341,27 @@ public class HytaleBlockAccessor implements BlockAccessor {
     
     @Override
     public boolean isSolid(String worldId, int x, int y, int z) {
-        // TODO: Implement solid block detection via SDK
-        // SDK PATTERN: Block.isSolid() or similar property
         String blockType = getBlockTypeInternal(worldId, x, y, z);
-        // For now, assume non-air blocks are solid (simplistic)
-        return !isAir(worldId, x, y, z);
+        
+        // Non-solid block types (incomplete list - extend as needed)
+        Set<String> nonSolidBlocks = Set.of(
+            "air", "void_air", "cave_air",
+            "water", "lava", "flowing_water", "flowing_lava",
+            "grass", "tall_grass", "fern", "large_fern",
+            "dead_bush", "seagrass", "tall_seagrass", "kelp",
+            "torch", "wall_torch", "redstone_torch", "redstone_wall_torch",
+            "fire", "soul_fire", "campfire", "soul_campfire",
+            "sign", "wall_sign", "hanging_sign",
+            "ladder", "vine", "weeping_vines", "twisting_vines",
+            "cobweb", "snow", "flower", "dandelion", "poppy",
+            "rail", "powered_rail", "detector_rail", "activator_rail",
+            "lever", "button", "pressure_plate", "tripwire", "tripwire_hook",
+            "banner", "wall_banner", "flower_pot",
+            "carpet", "moss_carpet", "sculk_vein",
+            "torch_flower", "pink_petals", "spore_blossom"
+        );
+        
+        return !nonSolidBlocks.contains(blockType) && !"unknown".equals(blockType);
     }
     
     // ============================================================

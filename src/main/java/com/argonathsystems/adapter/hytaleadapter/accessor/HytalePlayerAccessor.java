@@ -156,6 +156,20 @@ public class HytalePlayerAccessor implements PlayerAccessor {
     }
     
     @Override
+    public boolean hasPermission(UUID playerId, String permission) {
+        PlayerRef playerRef = getPlayerRefById(playerId);
+        if (playerRef == null || !playerRef.isValid()) {
+            return false;
+        }
+        
+        // TODO: Integrate with Hytale's permission system when available
+        // The Hytale SDK does not currently expose a permission API.
+        // This implementation returns true (fail-open) for development.
+        // In production, integrate with a custom permission provider or external system.
+        return true;
+    }
+    
+    @Override
     public UUID getPlayerId(PlatformEntity platformEntity) {
         return platformEntity.getEntityId();
     }
