@@ -86,6 +86,8 @@ public class HytaleCommandAccessor implements CommandAccessor {
             super(commandName);
             this.commandName = commandName;
             this.executor = executor;
+            // Allow commands to receive variable arguments without validation errors
+            setAllowsExtraArguments(true);
         }
         
         @Override
@@ -142,7 +144,95 @@ public class HytaleCommandAccessor implements CommandAccessor {
         
         @Override
         public void sendMessage(String message) {
-            context.sendMessage(Message.raw(message));
+            context.sendMessage(parseColorCodes(message));
+        }
+        
+        /**
+         * Parse Minecraft-style § color codes and convert to Hytale Message API.
+         * Supports: §0-9, §a-f (colors), §l (bold), §o (italic), §r (reset)
+         */
+        private Message parseColorCodes(String text) {
+            if (text == null || !text.contains("§")) {
+                return Message.raw(text);
+            }
+            
+            // Map § codes to hex colors
+            java.util.Map<Character, String> colorMap = java.util.Map.ofEntries(
+                java.util.Map.entry('0', "#000000"), // Black
+                java.util.Map.entry('1', "#0000AA"), // Dark Blue
+                java.util.Map.entry('2', "#00AA00"), // Dark Green
+                java.util.Map.entry('3', "#00AAAA"), // Dark Aqua
+                java.util.Map.entry('4', "#AA0000"), // Dark Red
+                java.util.Map.entry('5', "#AA00AA"), // Dark Purple
+                java.util.Map.entry('6', "#FFAA00"), // Gold
+                java.util.Map.entry('7', "#AAAAAA"), // Gray
+                java.util.Map.entry('8', "#555555"), // Dark Gray
+                java.util.Map.entry('9', "#5555FF"), // Blue
+                java.util.Map.entry('a', "#55FF55"), // Green
+                java.util.Map.entry('b', "#55FFFF"), // Aqua
+                java.util.Map.entry('c', "#FF5555"), // Red
+                java.util.Map.entry('d', "#FF55FF"), // Light Purple
+                java.util.Map.entry('e', "#FFFF55"), // Yellow
+                java.util.Map.entry('f', "#FFFFFF")  // White
+            );
+            
+            // Parse segments and build message
+            java.util.List<Message> segments = new java.util.ArrayList<>();
+            StringBuilder currentText = new StringBuilder();
+            String currentColor = null;
+            boolean bold = false;
+            boolean italic = false;
+            
+            for (int i = 0; i < text.length(); i++) {
+                char c = text.charAt(i);
+                if (c == '§' && i + 1 < text.length()) {
+                    // Flush current segment
+                    if (currentText.length() > 0) {
+                        Message seg = Message.raw(currentText.toString());
+                        if (currentColor != null) seg = seg.color(currentColor);
+                        if (bold) seg = seg.bold(true);
+                        if (italic) seg = seg.italic(true);
+                        segments.add(seg);
+                        currentText.setLength(0);
+                    }
+                    
+                    char code = Character.toLowerCase(text.charAt(i + 1));
+                    i++; // Skip the code character
+                    
+                    if (colorMap.containsKey(code)) {
+                        currentColor = colorMap.get(code);
+                        bold = false;
+                        italic = false;
+                    } else if (code == 'l') {
+                        bold = true;
+                    } else if (code == 'o') {
+                        italic = true;
+                    } else if (code == 'r') {
+                        currentColor = null;
+                        bold = false;
+                        italic = false;
+                    }
+                } else {
+                    currentText.append(c);
+                }
+            }
+            
+            // Flush remaining text
+            if (currentText.length() > 0) {
+                Message seg = Message.raw(currentText.toString());
+                if (currentColor != null) seg = seg.color(currentColor);
+                if (bold) seg = seg.bold(true);
+                if (italic) seg = seg.italic(true);
+                segments.add(seg);
+            }
+            
+            if (segments.isEmpty()) {
+                return Message.raw("");
+            } else if (segments.size() == 1) {
+                return segments.get(0);
+            } else {
+                return Message.join(segments.toArray(new Message[0]));
+            }
         }
         
         @Override
