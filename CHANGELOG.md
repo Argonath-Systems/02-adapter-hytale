@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Command Framework Issues (2026-02-01)
+
+- **HytaleCommandAccessor** (`ArgonathCommandWrapper`):
+  - Added `setAllowsExtraArguments(true)` to accept variable command arguments
+  - Fixed "wrong number of required arguments" error for commands like `/g create Test test`
+  
+- **HytaleCommandSenderWrapper**:
+  - Implemented `parseColorCodes()` method to convert § color codes to Hytale Message API
+  - Maps all 16 legacy colors (§0-§f) to correct hex values
+  - Maps formatting codes: §l (bold), §o (italic), §n (underline), §m (strikethrough), §k (obfuscated)
+  - Handles §r (reset) for returning to default style
+  - Messages now display colored text correctly in-game
+
 ### Added - Block and Storage Accessor Extensions (2026-01-31)
 
 - **HytaleBlockAccessor** (`com.argonathsystems.adapter.hytaleadapter.accessor`):
