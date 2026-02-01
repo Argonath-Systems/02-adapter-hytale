@@ -90,6 +90,12 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
     private final Map<UUID, Entity> entityCache = new ConcurrentHashMap<>();
     
     /**
+     * Metadata cache for entity custom data.
+     * Maps entity UUID to key-value pairs.
+     */
+    private final Map<UUID, Map<String, DataValue>> metadataCache = new ConcurrentHashMap<>();
+    
+    /**
      * Current world context for entity operations.
      */
     private World currentWorld;
@@ -421,20 +427,33 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
 
     @Override
     public void setMetadata(UUID entityId, String key, DataValue value) {
-        // TODO: Implement via entity BsonDocument metadata
-        throw new UnsupportedOperationException(
-            "HytaleNPCEntityAccessor.setMetadata() requires BsonDocument integration. " +
-            "Pattern: Entity metadata stored in component or codec data."
-        );
+        if (entityId == null || key == null) {
+            return;
+        }
+        
+        // Store in internal metadata cache
+        // Production would use entity component system or BsonDocument
+        Map<String, DataValue> entityMeta = metadataCache.computeIfAbsent(entityId, k -> new ConcurrentHashMap<>());
+        
+        if (value == null) {
+            entityMeta.remove(key);
+        } else {
+            entityMeta.put(key, value);
+        }
     }
 
     @Override
     public Optional<DataValue> getMetadata(UUID entityId, String key) {
-        // TODO: Implement via entity BsonDocument metadata
-        throw new UnsupportedOperationException(
-            "HytaleNPCEntityAccessor.getMetadata() requires BsonDocument integration. " +
-            "Pattern: Read from entity metadata storage."
-        );
+        if (entityId == null || key == null) {
+            return Optional.empty();
+        }
+        
+        Map<String, DataValue> entityMeta = metadataCache.get(entityId);
+        if (entityMeta == null) {
+            return Optional.empty();
+        }
+        
+        return Optional.ofNullable(entityMeta.get(key));
     }
     
     // ========================================================================

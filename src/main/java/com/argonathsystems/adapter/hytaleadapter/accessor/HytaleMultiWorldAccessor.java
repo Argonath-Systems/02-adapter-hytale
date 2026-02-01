@@ -675,12 +675,18 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     
     /**
      * Find a PlayerRef for a given UUID.
+     * Uses SDK Universe singleton for player lookup.
      */
     private PlayerRef findPlayerRef(UUID playerId) {
-        // TODO: Implement player lookup via server
-        // server.getPlayer(playerId) or similar
-        LOGGER.warn("STUB: Player lookup not fully implemented");
-        return null;
+        if (playerId == null) {
+            return null;
+        }
+        PlayerRef ref = Universe.get().getPlayer(playerId);
+        if (ref == null || !ref.isValid()) {
+            LOGGER.debug("Player not found or offline: {}", playerId);
+            return null;
+        }
+        return ref;
     }
     
     /**

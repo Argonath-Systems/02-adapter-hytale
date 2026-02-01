@@ -1,5 +1,9 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
+import au.ellie.hyui.builders.ContainerBuilder;
+import au.ellie.hyui.builders.HyUIPage;
+import au.ellie.hyui.builders.ItemGridBuilder;
+import au.ellie.hyui.builders.PageBuilder;
 import com.argonathsystems.framework.accessorapi.InventoryAccessor;
 import com.argonathsystems.framework.accessorapi.data.DataValue;
 import com.argonathsystems.framework.accessorapi.dto.ItemData;
@@ -8,7 +12,12 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
+import com.hypixel.hytale.server.core.ui.ItemGridSlot;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
 import org.bson.BsonDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -43,6 +52,8 @@ import java.util.UUID;
  * @since MIGRATION-001
  */
 public class HytaleInventoryAccessor implements InventoryAccessor {
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(HytaleInventoryAccessor.class);
     
     private final HytaleServer server;
 
@@ -284,6 +295,10 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
     // Thread-safe storage for per-player container contents
     private final java.util.concurrent.ConcurrentHashMap<String, List<ItemData>> containerContentsCache = 
         new java.util.concurrent.ConcurrentHashMap<>();
+    
+    // Track open container pages per player
+    private final java.util.concurrent.ConcurrentHashMap<UUID, HyUIPage> openContainerPages = 
+        new java.util.concurrent.ConcurrentHashMap<>();
 
     @Override
     public List<ItemData> getContainerContents(UUID playerId, String containerId) {
@@ -300,57 +315,46 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
             containerContentsCache.put(cacheKey, new ArrayList<>(items));
         }
         
-        // If player has the container open, update the view
-        Player player = getPlayer(playerId);
-        if (player != null) {
-            // TODO: Refresh open container view with updated contents
-            // This requires Hytale SDK container UI APIs
-        }
+        // TODO: Refresh open container with updated contents when HyUI API is clarified
+        LOGGER.debug("Container contents cached for {} - {}", playerId, containerId);
     }
 
+    /**
+     * Open a container UI for the player.
+     * 
+     * <p><b>SDK Research Required:</b></p>
+     * <ul>
+     *   <li>ItemGridSlot requires ItemStack, not (String, int) - need ItemStack.Builder pattern</li>
+     *   <li>PageBuilder.withId() method not found in HyUI docs</li>
+     *   <li>HyUIPage.show() method not found - use .open(Store) pattern instead?</li>
+     *   <li>Need to research proper HyUI container/inventory grid creation</li>
+     * </ul>
+     * 
+     * @see <a href="https://hyui.gitbook.io/docs/">HyUI Documentation</a>
+     */
     @Override
     public void openContainer(UUID playerId, String containerId, String title, int size) {
-        Player player = getPlayer(playerId);
-        if (player == null) {
-            return;
-        }
-        
-        String cacheKey = buildContainerCacheKey(playerId, containerId);
-        List<ItemData> contents = containerContentsCache.getOrDefault(cacheKey, Collections.emptyList());
-        
-        // TODO: Open container UI using Hytale SDK
-        // This requires:
-        // 1. Creating a virtual container with the specified size
-        // 2. Populating it with the cached contents
-        // 3. Sending the container open packet to the player
-        //
-        // Example (when SDK is available):
-        // VirtualContainer container = VirtualContainer.create(title, size);
-        // for (int i = 0; i < contents.size() && i < size; i++) {
-        //     container.setItem(i, fromItemData(contents.get(i)));
-        // }
-        // player.openContainer(container);
-        
+        // TODO: Implement using HyUI ItemGridBuilder once API is clarified
+        // Required SDK research:
+        // 1. How to create ItemStack from item ID string
+        // 2. Correct PageBuilder API for container UI
+        // 3. How to handle drag-and-drop slot events
         throw new UnsupportedOperationException(
-            "Container UI requires Hytale SDK virtual container APIs. " +
-            "Container ID: " + containerId + ", Title: " + title + ", Size: " + size
-        );
+            "Container UI implementation requires HyUI ItemGrid API research. " +
+            "SDK: ItemGridSlot(ItemStack), PageBuilder, ItemGridBuilder");
     }
 
     @Override
     public void closeContainer(UUID playerId) {
-        Player player = getPlayer(playerId);
-        if (player == null) {
+        if (playerId == null) {
             return;
         }
         
-        // TODO: Close any open container using Hytale SDK
-        // Example (when SDK is available):
-        // player.closeOpenContainer();
-        
-        throw new UnsupportedOperationException(
-            "Container close requires Hytale SDK container APIs."
-        );
+        HyUIPage existingPage = openContainerPages.remove(playerId);
+        if (existingPage != null) {
+            existingPage.close();
+            LOGGER.debug("Closed container for player {}", playerId);
+        }
     }
 
     /**
@@ -362,20 +366,39 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
     
     // --- Helper Methods ---
     
+    /**
+     * Get Player component from UUID using SDK Universe and ECS pattern.
+     * 
+     * <p><b>SDK Pattern:</b></p>
+     * <ol>
+     *   <li>Get PlayerRef via Universe.get().getPlayer(UUID)</li>
+     *   <li>Get Player component via PlayerRef.getComponent(Player.getComponentType())</li>
+     * </ol>
+     * 
+     * @param playerId The player's UUID
+     * @return Player component, or null if not found/offline
+     */
     private Player getPlayer(UUID playerId) {
         if (playerId == null) {
             return null;
         }
-        // STUB: Getting Player entity requires ECS component access through PlayerRef
-        // PlayerRef is available via Universe.get().getPlayer(playerId)
-        // but accessing the Player entity requires component store integration.
-        // 
-        // TODO: Implement using:
-        // PlayerRef ref = Universe.get().getPlayer(playerId);
-        // Player player = ref.getComponent(Player.getComponentType());
-        //
-        // For now, return null - inventory operations will fail gracefully.
-        return null;
+        
+        // Use Universe singleton to get player reference
+        PlayerRef playerRef = Universe.get().getPlayer(playerId);
+        if (playerRef == null || !playerRef.isValid()) {
+            LOGGER.debug("Player not found or offline: {}", playerId);
+            return null;
+        }
+        
+        // Get the Player component via ECS pattern
+        // Player is a Component<EntityStore>, use getComponent(ComponentType)
+        Player player = playerRef.getComponent(Player.getComponentType());
+        if (player == null) {
+            LOGGER.debug("PlayerRef valid but Player component unavailable: {}", playerId);
+            return null;
+        }
+        
+        return player;
     }
     
     /**

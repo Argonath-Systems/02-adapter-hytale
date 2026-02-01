@@ -48,6 +48,7 @@ public class HytaleAdapterProvider implements AccessorProvider {
     private volatile RenderAccessor renderAccessor;
     private volatile ParticleAccessor particleAccessor;
     private volatile BlockAccessor blockAccessor;
+    private volatile MultiWorldAccessor multiWorldAccessor;
     
     public HytaleAdapterProvider(Object /* JavaPlugin */ server) {
         this.server = server;
@@ -84,6 +85,18 @@ public class HytaleAdapterProvider implements AccessorProvider {
             "WorldManagementAccessor requires official Hytale SDK world management APIs. " +
             "See MIGRATION-001 for SDK integration requirements."
         );
+    }
+    
+    @Override
+    public MultiWorldAccessor getMultiWorldAccessor() {
+        if (multiWorldAccessor == null) {
+            synchronized (this) {
+                if (multiWorldAccessor == null) {
+                    multiWorldAccessor = new HytaleMultiWorldAccessor(server);
+                }
+            }
+        }
+        return multiWorldAccessor;
     }
     
     @Override

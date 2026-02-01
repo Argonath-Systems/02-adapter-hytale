@@ -1,6 +1,11 @@
 package com.argonathsystems.adapter.hytale.accessor;
 
 import com.argonathsystems.framework.accessorapi.CameraAccessor;
+import com.hypixel.hytale.protocol.AccumulationMode;
+import com.hypixel.hytale.protocol.packets.camera.CameraShakeEffect;
+import com.hypixel.hytale.server.core.io.PacketHandler;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,27 +117,36 @@ public class HytaleCameraAccessor implements CameraAccessor {
     
     @Override
     public void applyShake(UUID playerId, float intensity, long durationMs) {
-        // SDK PATTERN: Camera shake via CameraShake asset + packet
-        // 
-        // IMPLEMENTATION PATH (when server access is available):
-        // 1. Get or create CameraShake asset with desired intensity
-        //    CameraShake shake = CameraShake.getAssetMap().getAsset("standard_shake");
-        // 2. Convert to network packet
-        //    com.hypixel.hytale.protocol.CameraShake packet = shake.toPacket();
-        // 3. Send to player connection
-        //    PlayerRef player = getPlayerRef(playerId);
-        //    player.getConnection().send(new CameraShakePacket(packet, intensity, durationMs));
-        //
-        // The SDK supports both firstPerson and thirdPerson shake configurations.
-        //
-        // For now, track state internally for testing/debugging.
+        // Track state internally
         InternalCameraState state = getOrCreateState(playerId);
         state.shakeIntensity = intensity;
         state.shakeDurationMs = durationMs;
         state.shakeStartTime = System.currentTimeMillis();
         
-        LOGGER.debug("Applied camera shake for player {} (intensity: {}, duration: {}ms) - requires SDK packet", 
-            playerId, intensity, durationMs);
+        // Get PlayerRef from Universe
+        PlayerRef playerRef = Universe.get().getPlayer(playerId);
+        if (playerRef == null || !playerRef.isValid()) {
+            LOGGER.debug("Cannot apply camera shake: player {} not found", playerId);
+            return;
+        }
+        
+        // Create CameraShakeEffect packet
+        // Using cameraShakeId 0 for default shake, intensity from parameter, Sum mode for stacking
+        CameraShakeEffect shakePacket = new CameraShakeEffect(
+            0, // Default shake asset ID
+            intensity,
+            AccumulationMode.Sum
+        );
+        
+        // Send packet via PacketHandler.write()
+        PacketHandler handler = playerRef.getPacketHandler();
+        if (handler != null) {
+            handler.write(shakePacket);
+            LOGGER.debug("Applied camera shake for player {} (intensity: {}, duration: {}ms)", 
+                playerId, intensity, durationMs);
+        } else {
+            LOGGER.warn("Cannot apply camera shake: no packet handler for player {}", playerId);
+        }
     }
     
     @Override

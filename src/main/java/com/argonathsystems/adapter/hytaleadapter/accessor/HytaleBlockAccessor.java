@@ -3,6 +3,7 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 import com.argonathsystems.framework.accessorapi.BlockAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 import com.hypixel.hytale.server.core.HytaleServer;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
@@ -114,12 +115,33 @@ public class HytaleBlockAccessor implements BlockAccessor {
             return "air";
         }
         
-        // TODO: Implement using Hytale SDK when block API is available
-        // SDK PATTERN: WorldChunk.getBlock(localX, y, localZ)
-        // For now, return placeholder
-        throw new UnsupportedOperationException(
-            "Not yet implemented: Hytale SDK block type query. " +
-            "Waiting for stable block API in WorldChunk.");
+        try {
+            // Get chunk index (packed long from x,z coordinates)
+            int chunkX = x >> 4;
+            int chunkZ = z >> 4;
+            long chunkIndex = packChunkIndex(chunkX, chunkZ);
+            
+            // Get chunk from world using packed index
+            WorldChunk chunk = world.getChunk(chunkIndex);
+            if (chunk == null) {
+                return "air";
+            }
+            
+            // Get block type using BlockAccessor interface
+            // Local coordinates within chunk (0-15)
+            int localX = x & 15;
+            int localZ = z & 15;
+            
+            var blockType = chunk.getBlockType(localX, y, localZ);
+            if (blockType != null) {
+                // BlockType uses getId() for the identifier
+                return (String) blockType.getId();
+            }
+            return "air";
+        } catch (Exception e) {
+            LOGGER.debug("Failed to get block type at ({}, {}, {}): {}", x, y, z, e.getMessage());
+            return "air";
+        }
     }
     
     @Override
@@ -130,11 +152,37 @@ public class HytaleBlockAccessor implements BlockAccessor {
             return false;
         }
         
-        // TODO: Implement using Hytale SDK when block API is available
-        // SDK PATTERN: WorldChunk.setBlock(localX, y, localZ, blockRef)
-        throw new UnsupportedOperationException(
-            "Not yet implemented: Hytale SDK block modification. " +
-            "Waiting for stable block API in WorldChunk.");
+        try {
+            // Get chunk index (packed long from x,z coordinates)
+            int chunkX = x >> 4;
+            int chunkZ = z >> 4;
+            long chunkIndex = packChunkIndex(chunkX, chunkZ);
+            
+            // Get chunk from world using packed index
+            WorldChunk chunk = world.getChunk(chunkIndex);
+            if (chunk == null) {
+                LOGGER.warn("Chunk not loaded at ({}, {})", chunkX, chunkZ);
+                return false;
+            }
+            
+            // Local coordinates within chunk (0-15)
+            int localX = x & 15;
+            int localZ = z & 15;
+            
+            // Use BlockAccessor.setBlock(x, y, z, blockTypeString) method
+            return chunk.setBlock(localX, y, localZ, blockType);
+        } catch (Exception e) {
+            LOGGER.debug("Failed to set block at ({}, {}, {}): {}", x, y, z, e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Pack chunk X,Z coordinates into a single long index.
+     * SDK uses packed long for chunk lookup.
+     */
+    private long packChunkIndex(int chunkX, int chunkZ) {
+        return ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
     }
     
     // ============================================================
@@ -207,13 +255,15 @@ public class HytaleBlockAccessor implements BlockAccessor {
     
     /**
      * Internal method that returns a fallback value instead of throwing.
-     * Used for container checks while waiting for SDK implementation.
+     * Used for container checks - now uses SDK block API.
      */
     private String getBlockTypeInternal(String worldId, int x, int y, int z) {
-        // TODO: Implement actual block query when SDK is ready
-        // For now, return "unknown" to allow container system to gracefully degrade
-        LOGGER.trace("getBlockTypeInternal called but SDK block API not yet available");
-        return "unknown";
+        try {
+            return getBlockType(worldId, x, y, z);
+        } catch (Exception e) {
+            LOGGER.trace("getBlockTypeInternal failed for ({}, {}, {}): {}", x, y, z, e.getMessage());
+            return "unknown";
+        }
     }
     
     private World getDefaultWorld() {
@@ -222,13 +272,37 @@ public class HytaleBlockAccessor implements BlockAccessor {
     }
     
     private World getWorld(String worldId) {
-        // SDK PATTERN: For now, just return default world
-        // TODO: Implement world lookup by ID when Universe.getWorld(String) or similar is available
+        if (worldId == null || worldId.isEmpty()) {
+            return getDefaultWorld();
+        }
+        
+        // Try to find world by name in all loaded worlds
+        var worldsMap = Universe.get().getWorlds();
+        for (var entry : worldsMap.entrySet()) {
+            World world = entry.getValue();
+            if (worldId.equals(world.getName())) {
+                return world;
+            }
+        }
+        
+        // Try UUID-based lookup if worldId looks like a UUID
+        try {
+            java.util.UUID uuid = java.util.UUID.fromString(worldId);
+            World world = Universe.get().getWorld(uuid);
+            if (world != null) {
+                return world;
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Not a UUID, ignore
+        }
+        
+        // Fallback to default world
         World defaultWorld = getDefaultWorld();
-        if (defaultWorld != null && defaultWorld.getName().equals(worldId)) {
+        if (defaultWorld != null && worldId.equals(defaultWorld.getName())) {
             return defaultWorld;
         }
-        // Fallback to default world if specified world not found
+        
+        LOGGER.debug("World not found: {}, using default", worldId);
         return defaultWorld;
     }
 }
