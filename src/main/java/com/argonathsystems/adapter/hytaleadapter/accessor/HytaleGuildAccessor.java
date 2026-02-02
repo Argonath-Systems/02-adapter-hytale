@@ -5,11 +5,16 @@ import com.argonathsystems.framework.accessorapi.GuildData;
 import com.argonathsystems.framework.accessorapi.GuildRank;
 import com.argonathsystems.framework.accessorapi.MemberData;
 import com.argonathsystems.framework.accessorapi.TransactionData;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -43,6 +48,8 @@ public class HytaleGuildAccessor implements GuildAccessor {
     private static final String GUILD_NAMESPACE = "guild";
     private static final String ZONE_NAMESPACE = "guild_zones";
     private static final String BANK_NAMESPACE = "guild_bank";
+    private static final String MEMBERS_NAMESPACE = "guild_members";
+    private static final String PLAYER_GUILDS_NAMESPACE = "player_guilds";
 
     private final Map<UUID, GuildData> guilds = new ConcurrentHashMap<>();
     private final Map<UUID, List<MemberData>> guildMembers = new ConcurrentHashMap<>();
@@ -54,8 +61,60 @@ public class HytaleGuildAccessor implements GuildAccessor {
     
     // Optional storage accessor for persistence
     private HytaleStorageAccessor storageAccessor;
+    
+    // JSON serialization
+    private static final Gson GSON = new GsonBuilder()
+        .setPrettyPrinting()
+        .create();
 
     private record Invitation(UUID guildId, UUID inviterId, UUID inviteeId, long expiresAt) {}
+    
+    // Persistence data wrappers for clean serialization
+    private record PersistedGuildData(
+        String id, String name, String tag, String founderId,
+        String motd, long createdAt, int level, String description,
+        String recruitmentStatus, String emblemShape, String emblemIcon,
+        String emblemPrimaryColor, String emblemSecondaryColor
+    ) {
+        static PersistedGuildData from(GuildData g) {
+            return new PersistedGuildData(
+                g.id().toString(), g.name(), g.tag(), g.founderId().toString(),
+                g.motd(), g.createdAt(), g.level(), g.description(),
+                g.recruitmentStatus(), g.emblemShape(), g.emblemIcon(),
+                g.emblemPrimaryColor(), g.emblemSecondaryColor()
+            );
+        }
+        
+        GuildData toGuildData() {
+            return new GuildData(
+                UUID.fromString(id), name, tag, UUID.fromString(founderId),
+                motd, createdAt, level, description,
+                recruitmentStatus, emblemShape, emblemIcon,
+                emblemPrimaryColor, emblemSecondaryColor
+            );
+        }
+    }
+    
+    private record PersistedMemberData(
+        String guildId, String playerId, String rank, long joinedAt,
+        long lastActiveAt, String playerName, boolean isOnline, int level, long contribution
+    ) {
+        static PersistedMemberData from(MemberData m) {
+            return new PersistedMemberData(
+                m.guildId().toString(), m.playerId().toString(), m.rank().name(),
+                m.joinedAt(), m.lastActiveAt(), m.playerName(), m.isOnline(),
+                m.level(), m.contribution()
+            );
+        }
+        
+        MemberData toMemberData() {
+            return new MemberData(
+                UUID.fromString(guildId), UUID.fromString(playerId),
+                GuildRank.valueOf(rank), joinedAt, lastActiveAt,
+                playerName, isOnline, level, contribution
+            );
+        }
+    }
     
     public HytaleGuildAccessor() {
         LOGGER.info("HytaleGuildAccessor initialized (in-memory mode)");
@@ -63,10 +122,149 @@ public class HytaleGuildAccessor implements GuildAccessor {
     
     /**
      * Enables persistence by providing a storage accessor.
+     * Also triggers loading of persisted data.
      */
     public void setStorageAccessor(HytaleStorageAccessor storageAccessor) {
         this.storageAccessor = storageAccessor;
         LOGGER.info("HytaleGuildAccessor persistence enabled via StorageAccessor");
+        loadAllFromStorage();
+    }
+    
+    // ==================== Persistence Methods ====================
+    
+    private void loadAllFromStorage() {
+        if (storageAccessor == null) return;
+        
+        LOGGER.info("Loading guild data from persistent storage...");
+        
+        try {
+            // Load all guilds
+            storageAccessor.findKeysAsync(GUILD_NAMESPACE, "").thenAccept(keys -> {
+                for (String key : keys) {
+                    loadGuildFromStorage(UUID.fromString(key));
+                }
+                LOGGER.info("Loaded {} guilds from storage", guilds.size());
+            }).exceptionally(ex -> {
+                LOGGER.error("Failed to load guilds from storage", ex);
+                return null;
+            });
+            
+            // Load player -> guild mappings
+            storageAccessor.findKeysAsync(PLAYER_GUILDS_NAMESPACE, "").thenAccept(keys -> {
+                for (String playerId : keys) {
+                    storageAccessor.loadAsync(PLAYER_GUILDS_NAMESPACE, playerId, s -> s)
+                        .thenAccept(opt -> opt.ifPresent(guildId -> 
+                            playerGuilds.put(UUID.fromString(playerId), UUID.fromString(guildId))
+                        ));
+                }
+                LOGGER.info("Loaded {} player-guild mappings from storage", playerGuilds.size());
+            }).exceptionally(ex -> {
+                LOGGER.error("Failed to load player-guild mappings from storage", ex);
+                return null;
+            });
+            
+        } catch (Exception e) {
+            LOGGER.error("Error during storage load", e);
+        }
+    }
+    
+    private void loadGuildFromStorage(UUID guildId) {
+        if (storageAccessor == null) return;
+        
+        String key = guildId.toString();
+        
+        // Load guild data
+        storageAccessor.loadAsync(GUILD_NAMESPACE, key, json -> GSON.fromJson(json, PersistedGuildData.class))
+            .thenAccept(opt -> opt.ifPresent(persisted -> {
+                guilds.put(guildId, persisted.toGuildData());
+                
+                // Load members for this guild
+                loadMembersFromStorage(guildId);
+            }))
+            .exceptionally(ex -> {
+                LOGGER.error("Failed to load guild {}", guildId, ex);
+                return null;
+            });
+    }
+    
+    private void loadMembersFromStorage(UUID guildId) {
+        if (storageAccessor == null) return;
+        
+        String key = guildId.toString();
+        Type listType = new TypeToken<List<PersistedMemberData>>(){}.getType();
+        
+        storageAccessor.loadAsync(MEMBERS_NAMESPACE, key, json -> {
+            List<PersistedMemberData> persisted = GSON.fromJson(json, listType);
+            return persisted;
+        }).thenAccept(opt -> opt.ifPresent(persistedList -> {
+            List<MemberData> members = new ArrayList<>();
+            for (PersistedMemberData pm : persistedList) {
+                members.add(pm.toMemberData());
+            }
+            guildMembers.put(guildId, members);
+        })).exceptionally(ex -> {
+            LOGGER.error("Failed to load members for guild {}", guildId, ex);
+            return null;
+        });
+    }
+    
+    private void saveGuildToStorage(UUID guildId) {
+        if (storageAccessor == null) return;
+        
+        GuildData guild = guilds.get(guildId);
+        if (guild == null) return;
+        
+        String key = guildId.toString();
+        PersistedGuildData persisted = PersistedGuildData.from(guild);
+        
+        storageAccessor.saveAsync(GUILD_NAMESPACE, key, persisted, GSON::toJson)
+            .exceptionally(ex -> {
+                LOGGER.error("Failed to save guild {}", guildId, ex);
+                return null;
+            });
+    }
+    
+    private void deleteGuildFromStorage(UUID guildId) {
+        if (storageAccessor == null) return;
+        
+        String key = guildId.toString();
+        
+        storageAccessor.deleteAsync(GUILD_NAMESPACE, key);
+        storageAccessor.deleteAsync(MEMBERS_NAMESPACE, key);
+    }
+    
+    private void saveMembersToStorage(UUID guildId) {
+        if (storageAccessor == null) return;
+        
+        List<MemberData> members = guildMembers.get(guildId);
+        if (members == null) return;
+        
+        String key = guildId.toString();
+        List<PersistedMemberData> persisted = members.stream()
+            .map(PersistedMemberData::from)
+            .toList();
+        
+        storageAccessor.saveAsync(MEMBERS_NAMESPACE, key, persisted, GSON::toJson)
+            .exceptionally(ex -> {
+                LOGGER.error("Failed to save members for guild {}", guildId, ex);
+                return null;
+            });
+    }
+    
+    private void savePlayerGuildMapping(UUID playerId, UUID guildId) {
+        if (storageAccessor == null) return;
+        
+        storageAccessor.saveAsync(PLAYER_GUILDS_NAMESPACE, playerId.toString(), guildId.toString(), s -> s)
+            .exceptionally(ex -> {
+                LOGGER.error("Failed to save player-guild mapping for {}", playerId, ex);
+                return null;
+            });
+    }
+    
+    private void deletePlayerGuildMapping(UUID playerId) {
+        if (storageAccessor == null) return;
+        
+        storageAccessor.deleteAsync(PLAYER_GUILDS_NAMESPACE, playerId.toString());
     }
 
     @Override
@@ -93,6 +291,11 @@ public class HytaleGuildAccessor implements GuildAccessor {
         GuildData guild = new GuildData(guildId, name, tag, founderId, null, System.currentTimeMillis(), 1, "", "OPEN", "SHIELD", "SWORD", "RED", "WHITE");
         guilds.put(guildId, guild);
         guildMembers.put(guildId, new ArrayList<>());
+        
+        // Persist to storage
+        saveGuildToStorage(guildId);
+        
+        LOGGER.info("Created guild '{}' [{}] with ID {}", name, tag, guildId);
         return true;
     }
 
@@ -103,6 +306,12 @@ public class HytaleGuildAccessor implements GuildAccessor {
         MemberData member = new MemberData(guildId, playerId, rank, System.currentTimeMillis(), System.currentTimeMillis(), "Player", false, 1, 0L);
         guildMembers.computeIfAbsent(guildId, k -> new ArrayList<>()).add(member);
         playerGuilds.put(playerId, guildId);
+        
+        // Persist to storage
+        saveMembersToStorage(guildId);
+        savePlayerGuildMapping(playerId, guildId);
+        
+        LOGGER.debug("Added player {} to guild {} with rank {}", playerId, guildId, rank);
     }
 
     @Override
@@ -145,6 +354,12 @@ public class HytaleGuildAccessor implements GuildAccessor {
         boolean removed = members.removeIf(m -> m.playerId().equals(playerId));
         if (removed) {
             playerGuilds.remove(playerId);
+            
+            // Persist changes
+            saveMembersToStorage(guildId);
+            deletePlayerGuildMapping(playerId);
+            
+            LOGGER.debug("Removed player {} from guild {}", playerId, guildId);
         }
         return removed;
     }
@@ -158,6 +373,11 @@ public class HytaleGuildAccessor implements GuildAccessor {
             MemberData m = members.get(i);
             if (m.playerId().equals(playerId)) {
                 members.set(i, new MemberData(m.guildId(), m.playerId(), newRank, m.joinedAt(), m.lastActiveAt(), m.playerName(), m.isOnline(), m.level(), m.contribution()));
+                
+                // Persist rank change
+                saveMembersToStorage(guildId);
+                
+                LOGGER.debug("Updated rank for player {} in guild {} to {}", playerId, guildId, newRank);
                 return;
             }
         }
@@ -171,9 +391,15 @@ public class HytaleGuildAccessor implements GuildAccessor {
         if (members != null) {
             for (MemberData m : members) {
                 playerGuilds.remove(m.playerId());
+                deletePlayerGuildMapping(m.playerId());
             }
         }
         guilds.remove(guildId);
+        
+        // Remove from persistent storage
+        deleteGuildFromStorage(guildId);
+        
+        LOGGER.info("Deleted guild {}", guildId);
         return true;
     }
 
@@ -385,6 +611,7 @@ public class HytaleGuildAccessor implements GuildAccessor {
             existing.emblemPrimaryColor(), existing.emblemSecondaryColor()
         );
         guilds.put(guildId, updated);
+        saveGuildToStorage(guildId);
         LOGGER.debug("Set MOTD for guild {}", guildId);
     }
 
@@ -404,6 +631,7 @@ public class HytaleGuildAccessor implements GuildAccessor {
             existing.emblemPrimaryColor(), existing.emblemSecondaryColor()
         );
         guilds.put(guildId, updated);
+        saveGuildToStorage(guildId);
         LOGGER.debug("Set description for guild {}", guildId);
     }
 
@@ -423,6 +651,7 @@ public class HytaleGuildAccessor implements GuildAccessor {
             existing.emblemPrimaryColor(), existing.emblemSecondaryColor()
         );
         guilds.put(guildId, updated);
+        saveGuildToStorage(guildId);
         LOGGER.debug("Set recruitment status for guild {} to {}", guildId, status);
     }
 
@@ -441,6 +670,7 @@ public class HytaleGuildAccessor implements GuildAccessor {
             shape, icon, primaryColor, secondaryColor // Updated emblem
         );
         guilds.put(guildId, updated);
+        saveGuildToStorage(guildId);
         LOGGER.debug("Set emblem for guild {}: shape={}, icon={}, colors={}/{}", 
             guildId, shape, icon, primaryColor, secondaryColor);
     }

@@ -49,6 +49,7 @@ public class HytaleAdapterProvider implements AccessorProvider {
     private volatile ParticleAccessor particleAccessor;
     private volatile BlockAccessor blockAccessor;
     private volatile MultiWorldAccessor multiWorldAccessor;
+    private volatile InputAccessor inputAccessor;
     
     public HytaleAdapterProvider(Object /* JavaPlugin */ server) {
         this.server = server;
@@ -260,7 +261,15 @@ public class HytaleAdapterProvider implements AccessorProvider {
         if (guildAccessor == null) {
             synchronized (this) {
                 if (guildAccessor == null) {
-                    guildAccessor = new HytaleGuildAccessor();
+                    HytaleGuildAccessor hytaleGuildAccessor = new HytaleGuildAccessor();
+                    
+                    // Wire persistence via StorageAccessor
+                    StorageAccessor storageAccessor = getStorageAccessor();
+                    if (storageAccessor instanceof HytaleStorageAccessor hsa) {
+                        hytaleGuildAccessor.setStorageAccessor(hsa);
+                    }
+                    
+                    guildAccessor = hytaleGuildAccessor;
                 }
             }
         }
@@ -340,6 +349,18 @@ public class HytaleAdapterProvider implements AccessorProvider {
     }
     
     @Override
+    public InputAccessor getInputAccessor() {
+        if (inputAccessor == null) {
+            synchronized (this) {
+                if (inputAccessor == null) {
+                    inputAccessor = new HytaleInputAccessor(server);
+                }
+            }
+        }
+        return inputAccessor;
+    }
+    
+    @Override
     public String getPlatformId() {
         return "hytale";
     }
@@ -349,5 +370,14 @@ public class HytaleAdapterProvider implements AccessorProvider {
         // All capabilities return false until SDK is integrated
         // This prevents runtime errors from uncached capability checks
         return false;
+    }
+    
+    /**
+     * Shutdown all accessors and release resources.
+     * Call this when the plugin is disabled.
+     */
+    public void shutdown() {
+        // Nothing to shutdown for input accessor
+        // Cycling keybind system is now in standalone mod (06-mod-dual-hotbar)
     }
 }

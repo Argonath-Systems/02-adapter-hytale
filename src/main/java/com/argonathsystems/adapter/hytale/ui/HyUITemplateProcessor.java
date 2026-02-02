@@ -71,6 +71,30 @@ public class HyUITemplateProcessor implements TemplateProcessorWrapper {
     }
     
     /**
+     * Processes a template with the given variables.
+     * 
+     * @param template the template string
+     * @param variables the variables to substitute
+     * @return the processed template
+     */
+    public String process(String template, Map<String, Object> variables) {
+        variables.forEach(processor::setVariable);
+        return processor.process(template);
+    }
+    
+    /**
+     * Static helper to process a template with variables in one call.
+     * 
+     * @param template the template string
+     * @param variables the variables to substitute
+     * @return the processed template
+     */
+    public static String processStatic(String template, Map<String, Object> variables) {
+        HyUITemplateProcessor processor = new HyUITemplateProcessor();
+        return processor.process(template, variables);
+    }
+    
+    /**
      * Gets the underlying HyUI TemplateProcessor for advanced usage.
      * 
      * @return the underlying TemplateProcessor

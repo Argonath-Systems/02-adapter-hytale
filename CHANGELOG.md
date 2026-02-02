@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - HyUI Threading Issue (2026-02-01)
+
+- **HytaleUIAccessor** (`openUI`, `openModal`, `openPage`):
+  - Fixed `IllegalStateException: Assert not in thread!` error when opening UIs from command handlers
+  - Root cause: `getPlayerStore(playerRef)` was being called from ForkJoinPool command thread, 
+    but Store.getComponent() requires execution on the WorldThread
+  - Solution: Use thread-safe `PlayerRef.getWorldUuid()` to get World without store access,
+    then schedule entire store access + UI opening on the World thread via `CompletableFuture.runAsync(..., world)`
+  - Pattern now matches HyUI's own `HyUITestGuiCommand` reference implementation
+  - Affected methods: `openUI()`, `openModal()`, `openPage()`
+
 ### Fixed - Command Framework Issues (2026-02-01)
 
 - **HytaleCommandAccessor** (`ArgonathCommandWrapper`):

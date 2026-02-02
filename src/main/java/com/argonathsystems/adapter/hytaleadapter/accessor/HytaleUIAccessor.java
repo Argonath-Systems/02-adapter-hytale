@@ -8,18 +8,23 @@ import au.ellie.hyui.html.TemplateProcessor;
 import com.argonathsystems.framework.accessorapi.UIAccessor;
 import com.argonathsystems.framework.accessorapi.ui.HudLayoutData;
 import com.argonathsystems.framework.accessorapi.ui.UIContext;
+import com.argonathsystems.framework.accessorapi.ui.UIEventBinding;
 import com.argonathsystems.framework.accessorapi.ui.UIUpdateData;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -100,21 +105,165 @@ public class HytaleUIAccessor implements UIAccessor {
             return;
         }
         
-        try {
-            // Process template with context variables if provided
-            String processedHtml = processTemplateWithContext(template, context);
-            
-            // Open as a Page (full-screen UI)
-            HyUIPage page = PageBuilder.pageForPlayer(playerRef)
-                .fromHtml(processedHtml)
-                .open(getEntityStoreAccessor(playerRef));
-            
-            activePages.put(buildKey(playerId, uiId), page);
-            openUIByPlayer.put(playerId, uiId);
-            LOGGER.debug("Opened UI {} for player {}", uiId, playerId);
-            
-        } catch (Exception e) {
-            LOGGER.error("Failed to open UI {} for player {}", uiId, playerId, e);
+        // Get the World from PlayerRef.getWorldUuid() - this is thread-safe and doesn't trigger
+        // Store assertions. Then we schedule the entire store access + UI opening on the world thread.
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            LOGGER.warn("Cannot open UI {}: player {} has no world UUID", uiId, playerId);
+            return;
+        }
+        
+        World world = Universe.get().getWorld(worldUuid);
+        if (world == null) {
+            LOGGER.warn("Cannot open UI {}: world {} not found for player {}", uiId, worldUuid, playerId);
+            return;
+        }
+        
+        // Process template before scheduling (can be done on any thread)
+        String processedHtml = processTemplateWithContext(template, context);
+        
+        // Schedule UI opening on world thread using World as Executor
+        // CRITICAL: getPlayerStore() and PageBuilder.open() MUST run on the WorldThread
+        // to avoid "Assert not in thread!" errors from Store.getComponent()
+        CompletableFuture.runAsync(() -> {
+            try {
+                // Get store ON the world thread - this is where thread assertion is enforced
+                Store<EntityStore> store = getPlayerStore(playerRef);
+                if (store == null) {
+                    LOGGER.warn("Cannot open UI {}: player {} has no store context (on world thread)", uiId, playerId);
+                    return;
+                }
+                
+                // Open as a Page (full-screen UI) - MUST run on WorldThread
+                HyUIPage page = PageBuilder.pageForPlayer(playerRef)
+                    .fromHtml(processedHtml)
+                    .open(store);
+                
+                activePages.put(buildKey(playerId, uiId), page);
+                openUIByPlayer.put(playerId, uiId);
+                LOGGER.debug("Opened UI {} for player {}", uiId, playerId);
+                
+            } catch (Exception e) {
+                LOGGER.error("Failed to open UI {} for player {}", uiId, playerId, e);
+            }
+        }, world);
+    }
+    
+    @Override
+    public void openUIWithEvents(UUID playerId, String uiId, UIContext context, List<UIEventBinding> eventBindings) {
+        PlayerRef playerRef = getPlayerRef(playerId);
+        if (playerRef == null) {
+            LOGGER.warn("Cannot open UI {}: player {} not found", uiId, playerId);
+            return;
+        }
+        
+        String template = registeredUIs.get(uiId);
+        if (template == null) {
+            LOGGER.warn("Cannot open UI {}: not registered", uiId);
+            return;
+        }
+        
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            LOGGER.warn("Cannot open UI {}: player {} has no world UUID", uiId, playerId);
+            return;
+        }
+        
+        World world = Universe.get().getWorld(worldUuid);
+        if (world == null) {
+            LOGGER.warn("Cannot open UI {}: world {} not found for player {}", uiId, worldUuid, playerId);
+            return;
+        }
+        
+        // Process template before scheduling (can be done on any thread)
+        String processedHtml = processTemplateWithContext(template, context);
+        
+        // Schedule UI opening on world thread using World as Executor
+        CompletableFuture.runAsync(() -> {
+            try {
+                Store<EntityStore> store = getPlayerStore(playerRef);
+                if (store == null) {
+                    LOGGER.warn("Cannot open UI {}: player {} has no store context", uiId, playerId);
+                    return;
+                }
+                
+                // Build the page with event listeners
+                PageBuilder builder = PageBuilder.pageForPlayer(playerRef)
+                    .fromHtml(processedHtml);
+                
+                // Register event bindings
+                if (eventBindings != null) {
+                    for (UIEventBinding binding : eventBindings) {
+                        CustomUIEventBindingType hyuiEventType = mapEventType(binding.eventType());
+                        
+                        builder.addEventListener(binding.elementId(), hyuiEventType, (data, ctx) -> {
+                            // Create event context wrapper
+                            UIEventBinding.UIEventContext eventContext = new HyUIEventContext(ctx, playerId);
+                            binding.handler().accept(playerId, eventContext);
+                        });
+                        LOGGER.trace("Registered event listener: {} -> {}", binding.elementId(), binding.eventType());
+                    }
+                }
+                
+                HyUIPage page = builder.open(store);
+                
+                activePages.put(buildKey(playerId, uiId), page);
+                openUIByPlayer.put(playerId, uiId);
+                LOGGER.debug("Opened UI {} with {} event bindings for player {}", 
+                    uiId, eventBindings != null ? eventBindings.size() : 0, playerId);
+                
+            } catch (Exception e) {
+                LOGGER.error("Failed to open UI {} for player {}", uiId, playerId, e);
+            }
+        }, world);
+    }
+    
+    /**
+     * Maps accessor UIEventType to HyUI CustomUIEventBindingType.
+     */
+    private CustomUIEventBindingType mapEventType(UIEventBinding.UIEventType eventType) {
+        return switch (eventType) {
+            case CLICK -> CustomUIEventBindingType.Activating;
+            case VALUE_CHANGED -> CustomUIEventBindingType.ValueChanged;
+            case FOCUS_GAINED -> CustomUIEventBindingType.FocusGained;
+            case FOCUS_LOST -> CustomUIEventBindingType.FocusLost;
+            case SELECTION_CHANGED -> CustomUIEventBindingType.SelectedTabChanged;
+            case HOVER_ENTER -> CustomUIEventBindingType.MouseEntered;
+            case HOVER_EXIT -> CustomUIEventBindingType.MouseExited;
+        };
+    }
+    
+    /**
+     * Wrapper around HyUI's UIContext for the accessor API.
+     */
+    private class HyUIEventContext implements UIEventBinding.UIEventContext {
+        private final au.ellie.hyui.events.UIContext hyuiContext;
+        private final UUID playerId;
+        
+        HyUIEventContext(au.ellie.hyui.events.UIContext hyuiContext, UUID playerId) {
+            this.hyuiContext = hyuiContext;
+            this.playerId = playerId;
+        }
+        
+        @Override
+        public String getValue(String elementId) {
+            return hyuiContext.getValue(elementId, String.class).orElse(null);
+        }
+        
+        @Override
+        public <T> T getValue(String elementId, Class<T> type) {
+            return hyuiContext.getValue(elementId, type).orElse(null);
+        }
+        
+        @Override
+        public void closeUI() {
+            hyuiContext.getPage().ifPresent(HyUIPage::close);
+            openUIByPlayer.remove(playerId);
+        }
+        
+        @Override
+        public void updateElement(String elementId, UIUpdateData data) {
+            hyuiContext.getPage().ifPresent(page -> applyUIUpdate(page, elementId, data));
         }
     }
 
@@ -249,19 +398,45 @@ public class HytaleUIAccessor implements UIAccessor {
             return;
         }
         
-        try {
-            String processedHtml = wrapAsModal(content, context);
-            
-            HyUIPage page = PageBuilder.pageForPlayer(playerRef)
-                .fromHtml(processedHtml)
-                .open(getEntityStoreAccessor(playerRef));
-            
-            activePages.put(buildKey(playerId, modalId), page);
-            LOGGER.debug("Opened modal {} for player {}", modalId, playerId);
-            
-        } catch (Exception e) {
-            LOGGER.error("Failed to open modal {} for player {}", modalId, playerId, e);
+        // Get the World from PlayerRef.getWorldUuid() - this is thread-safe and doesn't trigger
+        // Store assertions. Then we schedule the entire store access + UI opening on the world thread.
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            LOGGER.warn("Cannot open modal {}: player {} has no world UUID", modalId, playerId);
+            return;
         }
+        
+        World world = Universe.get().getWorld(worldUuid);
+        if (world == null) {
+            LOGGER.warn("Cannot open modal {}: world {} not found for player {}", modalId, worldUuid, playerId);
+            return;
+        }
+        
+        // Process template before scheduling (can be done on any thread)
+        String processedHtml = wrapAsModal(content, context);
+        
+        // Schedule on world thread using World as Executor
+        // CRITICAL: getPlayerStore() and PageBuilder.open() MUST run on the WorldThread
+        CompletableFuture.runAsync(() -> {
+            try {
+                // Get store ON the world thread - this is where thread assertion is enforced
+                Store<EntityStore> store = getPlayerStore(playerRef);
+                if (store == null) {
+                    LOGGER.warn("Cannot open modal {}: player {} has no store context (on world thread)", modalId, playerId);
+                    return;
+                }
+                
+                HyUIPage page = PageBuilder.pageForPlayer(playerRef)
+                    .fromHtml(processedHtml)
+                    .open(store);
+                
+                activePages.put(buildKey(playerId, modalId), page);
+                LOGGER.debug("Opened modal {} for player {}", modalId, playerId);
+                
+            } catch (Exception e) {
+                LOGGER.error("Failed to open modal {} for player {}", modalId, playerId, e);
+            }
+        }, world);
     }
     
     @Override
@@ -300,19 +475,45 @@ public class HytaleUIAccessor implements UIAccessor {
             return;
         }
         
-        try {
-            String processedHtml = wrapAsPage(content, context);
-            
-            HyUIPage page = PageBuilder.pageForPlayer(playerRef)
-                .fromHtml(processedHtml)
-                .open(getEntityStoreAccessor(playerRef));
-            
-            activePages.put(buildKey(playerId, pageId), page);
-            LOGGER.debug("Opened page {} for player {}", pageId, playerId);
-            
-        } catch (Exception e) {
-            LOGGER.error("Failed to open page {} for player {}", pageId, playerId, e);
+        // Get the World from PlayerRef.getWorldUuid() - this is thread-safe and doesn't trigger
+        // Store assertions. Then we schedule the entire store access + UI opening on the world thread.
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            LOGGER.warn("Cannot open page {}: player {} has no world UUID", pageId, playerId);
+            return;
         }
+        
+        World world = Universe.get().getWorld(worldUuid);
+        if (world == null) {
+            LOGGER.warn("Cannot open page {}: world {} not found for player {}", pageId, worldUuid, playerId);
+            return;
+        }
+        
+        // Process template before scheduling (can be done on any thread)
+        String processedHtml = wrapAsPage(content, context);
+        
+        // Schedule on world thread using World as Executor
+        // CRITICAL: getPlayerStore() and PageBuilder.open() MUST run on the WorldThread
+        CompletableFuture.runAsync(() -> {
+            try {
+                // Get store ON the world thread - this is where thread assertion is enforced
+                Store<EntityStore> store = getPlayerStore(playerRef);
+                if (store == null) {
+                    LOGGER.warn("Cannot open page {}: player {} has no store context (on world thread)", pageId, playerId);
+                    return;
+                }
+                
+                HyUIPage page = PageBuilder.pageForPlayer(playerRef)
+                    .fromHtml(processedHtml)
+                    .open(store);
+                
+                activePages.put(buildKey(playerId, pageId), page);
+                LOGGER.debug("Opened page {} for player {}", pageId, playerId);
+                
+            } catch (Exception e) {
+                LOGGER.error("Failed to open page {} for player {}", pageId, playerId, e);
+            }
+        }, world);
     }
     
     @Override
@@ -346,6 +547,35 @@ public class HytaleUIAccessor implements UIAccessor {
             return null;
         }
         return Universe.get().getPlayer(playerId);
+    }
+    
+    /**
+     * Get Store from PlayerRef's player reference.
+     * This is the correct way to get the store for HyUI operations.
+     * Uses the pattern from HyUI's own commands (e.g., HyUITestGuiCommand).
+     */
+    private Store<EntityStore> getPlayerStore(PlayerRef playerRef) {
+        if (playerRef == null) {
+            return null;
+        }
+        var ref = playerRef.getReference();
+        if (ref != null && ref.isValid()) {
+            return ref.getStore();
+        }
+        return null;
+    }
+    
+    /**
+     * Get the World instance for a player.
+     * Required for scheduling tasks on the world thread via World.execute().
+     */
+    private World getPlayerWorld(PlayerRef playerRef) {
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid != null) {
+            return Universe.get().getWorld(worldUuid);
+        }
+        // Fallback to default world
+        return Universe.get().getDefaultWorld();
     }
     
     /**
@@ -384,19 +614,68 @@ public class HytaleUIAccessor implements UIAccessor {
     /**
      * Process template with UIContext variables using HyUI TemplateProcessor.
      * 
-     * NOTE: UIContext is a marker interface. Implementations may provide data
-     * via record fields or getter methods. For now, we do simple toString processing.
-     * TODO: Define a standard interface for context data extraction.
+     * <p>Extracts data from UIContext implementations (typically records) via reflection
+     * and populates a TemplateProcessor with variables for {{$variableName}} substitution.
+     * 
+     * <p>Supported context types:
+     * <ul>
+     *   <li>Java Records: All record components become template variables</li>
+     *   <li>Map-based contexts: If context has a getData() method returning Map</li>
+     *   <li>Other objects: Public getter methods (getXxx/isXxx) become variables</li>
+     * </ul>
+     * 
+     * @param template The HyUIML template with {{$variable}} placeholders
+     * @param context The UIContext containing variable values
+     * @return Processed template with variables substituted
      */
     private String processTemplateWithContext(String template, UIContext context) {
         if (context == null) {
             return template;
         }
         
-        // UIContext is a marker interface - extract data via reflection or toString
-        // For now, just return the template as-is
-        // Future: define DataContext extends UIContext { Map<String,Object> getData(); }
-        return template;
+        TemplateProcessor processor = new TemplateProcessor();
+        
+        try {
+            Class<?> contextClass = context.getClass();
+            
+            // Handle Java Records (preferred for UIContext implementations)
+            if (contextClass.isRecord()) {
+                for (java.lang.reflect.RecordComponent component : contextClass.getRecordComponents()) {
+                    String name = component.getName();
+                    Object value = component.getAccessor().invoke(context);
+                    processor.setVariable(name, value != null ? value : "");
+                    LOGGER.trace("Template variable set: {} = {}", name, value);
+                }
+            } else {
+                // Handle regular classes via getter methods
+                for (java.lang.reflect.Method method : contextClass.getMethods()) {
+                    String methodName = method.getName();
+                    if (method.getParameterCount() == 0 && !methodName.equals("getClass")) {
+                        String varName = null;
+                        
+                        if (methodName.startsWith("get") && methodName.length() > 3) {
+                            varName = Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
+                        } else if (methodName.startsWith("is") && methodName.length() > 2 
+                                   && (method.getReturnType() == boolean.class || method.getReturnType() == Boolean.class)) {
+                            varName = Character.toLowerCase(methodName.charAt(2)) + methodName.substring(3);
+                        }
+                        
+                        if (varName != null) {
+                            Object value = method.invoke(context);
+                            processor.setVariable(varName, value != null ? value : "");
+                            LOGGER.trace("Template variable set: {} = {}", varName, value);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to extract variables from UIContext: {}", e.getMessage());
+            // Return unprocessed template if extraction fails
+            return template;
+        }
+        
+        // Process the template using HyUI's TemplateProcessor
+        return processor.process(template);
     }
     
     /**

@@ -1,0 +1,139 @@
+{
+    "groups": [
+        {
+            "name": "Argonath UI",
+            "description": "Main Character Panel navigation keybinds",
+            "context": "playing",
+            "actions": [
+                {
+                    "name": "argonath:OPEN_INVENTORY",
+                    "default_key": "I",
+                    "description": "Open Inventory (Equipment)",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:OPEN_BAGS",
+                    "default_key": "B",
+                    "description": "Open Bags",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:OPEN_QUEST_BOOK",
+                    "default_key": "J",
+                    "description": "Open Quest Book",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:OPEN_SOCIAL",
+                    "default_key": "O",
+                    "description": "Open Social (Friends)",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:OPEN_GUILD",
+                    "default_key": "G",
+                    "description": "Open Guild Panel",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:OPEN_MAP",
+                    "default_key": "M",
+                    "description": "Open World Map",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:OPEN_PROFESSIONS",
+                    "default_key": "K",
+                    "description": "Open Professions",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:OPEN_GROUP_FINDER",
+                    "default_key": "L",
+                    "description": "Open Group Finder",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:OPEN_CHARACTER",
+                    "default_key": "C",
+                    "description": "Open Character Panel",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:OPEN_MOUNTS",
+                    "default_key": "P",
+                    "description": "Open Mounts Collection",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:OPEN_FACTION",
+                    "default_key": "U",
+                    "description": "Open Faction/Reputation",
+                    "category": "UI"
+                },
+                {
+                    "name": "argonath:TOGGLE_PANEL",
+                    "default_key": "ESCAPE",
+                    "description": "Toggle Menu / Close Panel",
+                    "category": "UI"
+                }
+            ]
+        },
+        {
+            "name": "Argonath Combat",
+            "description": "Combat skill and ability keybinds",
+            "context": "playing",
+            "actions": [
+                {
+                    "name": "argonath:SKILL_SLOT_1",
+                    "default_key": "1",
+                    "modifier": "SHIFT",
+                    "description": "Cast Skill Slot 1",
+                    "category": "Combat"
+                },
+                {
+                    "name": "argonath:SKILL_SLOT_2",
+                    "default_key": "2",
+                    "modifier": "SHIFT",
+                    "description": "Cast Skill Slot 2",
+                    "category": "Combat"
+                },
+                {
+                    "name": "argonath:SKILL_SLOT_3",
+                    "default_key": "3",
+                    "modifier": "SHIFT",
+                    "description": "Cast Skill Slot 3",
+                    "category": "Combat"
+                },
+                {
+                    "name": "argonath:SKILL_SLOT_4",
+                    "default_key": "4",
+                    "modifier": "SHIFT",
+                    "description": "Cast Skill Slot 4",
+                    "category": "Combat"
+                }
+            ]
+        },
+        {
+            "name": "Argonath Admin",
+            "description": "Admin mode keybinds",
+            "context": "playing",
+            "actions": [
+                {
+                    "name": "argonath:TOGGLE_NPC_ADMIN",
+                    "default_key": "N",
+                    "modifier": "CONTROL",
+                    "description": "Toggle NPC Admin Mode",
+                    "category": "Admin"
+                },
+                {
+                    "name": "argonath:TOGGLE_PREFAB_EDITOR",
+                    "default_key": "F",
+                    "modifier": "CONTROL",
+                    "description": "Toggle Prefab Editor",
+                    "category": "Admin"
+                }
+            ]
+        }
+    ]
+}
