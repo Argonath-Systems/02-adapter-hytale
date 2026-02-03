@@ -4,6 +4,7 @@ import au.ellie.hyui.builders.ContainerBuilder;
 import au.ellie.hyui.builders.HyUIPage;
 import au.ellie.hyui.builders.ItemGridBuilder;
 import au.ellie.hyui.builders.PageBuilder;
+import com.argonathsystems.adapter.hytale.packet.InventoryBlockAdapter;
 import com.argonathsystems.framework.accessorapi.InventoryAccessor;
 import com.argonathsystems.framework.accessorapi.data.DataValue;
 import com.argonathsystems.framework.accessorapi.dto.ItemData;
@@ -26,6 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiPredicate;
 
 /**
  * Hytale implementation of InventoryAccessor using SDK inventory system.
@@ -55,10 +59,63 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(HytaleInventoryAccessor.class);
     
+    /** Counter for generating unique registration IDs */
+    private static final AtomicLong REGISTRATION_ID_COUNTER = new AtomicLong(0);
+    
     private final HytaleServer server;
+    
+    /** Inventory block adapter for slot filtering */
+    private final InventoryBlockAdapter inventoryBlockAdapter;
+    
+    /** List of active slot block filters */
+    private final List<SlotBlockFilterEntry> slotBlockFilters = new CopyOnWriteArrayList<>();
 
     public HytaleInventoryAccessor(Object server) {
         this.server = (HytaleServer) server;
+        this.inventoryBlockAdapter = new InventoryBlockAdapter();
+        
+        // Wire the composite filter to the adapter
+        inventoryBlockAdapter.registerSlotBlockFilter(this::processSlotBlockFilters);
+        
+        LOGGER.info("HytaleInventoryAccessor initialized with slot blocking support");
+    }
+    
+    /**
+     * Get the inventory block adapter for packet registration.
+     * 
+     * <p>This adapter should be registered with the packet adapter system
+     * during server initialization.</p>
+     * 
+     * @return The inventory block adapter
+     */
+    public InventoryBlockAdapter getInventoryBlockAdapter() {
+        return inventoryBlockAdapter;
+    }
+    
+    /**
+     * Process all registered slot block filters.
+     * Returns true if ANY filter wants to block the placement.
+     */
+    private boolean processSlotBlockFilters(UUID playerId, Integer slotIndex) {
+        LOGGER.debug("Processing {} slot block filters for player {} slot {}", 
+            slotBlockFilters.size(), playerId, slotIndex);
+        
+        for (SlotBlockFilterEntry entry : slotBlockFilters) {
+            try {
+                boolean shouldBlock = entry.filter.test(playerId, slotIndex);
+                LOGGER.debug("Filter {} for slot {}: shouldBlock={}", 
+                    entry.registrationId, slotIndex, shouldBlock);
+                if (shouldBlock) {
+                    LOGGER.info("Slot {} blocked for player {} by filter {}", 
+                        slotIndex, playerId, entry.registrationId);
+                    return true; // Block
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error in slot block filter (id={}): {}", 
+                    entry.registrationId, e.getMessage(), e);
+            }
+        }
+        return false; // Allow
     }
 
     @Override
@@ -245,6 +302,38 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
         }
         
         return Optional.of(toItemData(stack, inventory.getActiveHotbarSlot()));
+    }
+
+    @Override
+    public Optional<ItemData> getHotbarItem(UUID playerId, int hotbarSlot) {
+        if (hotbarSlot < 0 || hotbarSlot > 8) {
+            LOGGER.debug("Hotbar slot {} out of range (0-8)", hotbarSlot);
+            return Optional.empty();
+        }
+        
+        Player player = getPlayer(playerId);
+        if (player == null) {
+            return Optional.empty();
+        }
+        
+        Inventory inventory = player.getInventory();
+        if (inventory == null) {
+            return Optional.empty();
+        }
+        
+        // Get hotbar container specifically
+        ItemContainer hotbar = inventory.getHotbar();
+        if (hotbar == null) {
+            LOGGER.debug("Player {} has no hotbar container", playerId);
+            return Optional.empty();
+        }
+        
+        ItemStack stack = hotbar.getItemStack((short) hotbarSlot);
+        if (ItemStack.isEmpty(stack)) {
+            return Optional.empty();
+        }
+        
+        return Optional.of(toItemData(stack, hotbarSlot));
     }
 
     @Override
@@ -528,5 +617,67 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
             }
             case DataValue.MapValue mv -> convertDataValueToBson(mv.value());
         };
+    }
+    
+    // ============================================================
+    // Slot Blocking (SM-UI-050)
+    // ============================================================
+    
+    @Override
+    public SlotBlockRegistration registerHotbarSlotBlockFilter(BiPredicate<UUID, Integer> filter) {
+        if (filter == null) {
+            return null;
+        }
+        
+        long registrationId = REGISTRATION_ID_COUNTER.incrementAndGet();
+        SlotBlockFilterEntry entry = new SlotBlockFilterEntry(registrationId, filter);
+        slotBlockFilters.add(entry);
+        
+        LOGGER.debug("Registered slot block filter (id={})", registrationId);
+        
+        return new HytaleSlotBlockRegistration(registrationId, this);
+    }
+    
+    /**
+     * Remove a slot block filter by registration ID.
+     */
+    private void removeSlotBlockFilter(long registrationId) {
+        slotBlockFilters.removeIf(entry -> entry.registrationId == registrationId);
+        LOGGER.debug("Unregistered slot block filter (id={})", registrationId);
+    }
+    
+    /**
+     * Entry for tracking slot block filters.
+     */
+    private record SlotBlockFilterEntry(
+        long registrationId,
+        BiPredicate<UUID, Integer> filter
+    ) {}
+    
+    /**
+     * Implementation of SlotBlockRegistration.
+     */
+    private static class HytaleSlotBlockRegistration implements SlotBlockRegistration {
+        private final long registrationId;
+        private final HytaleInventoryAccessor accessor;
+        private volatile boolean active = true;
+        
+        HytaleSlotBlockRegistration(long registrationId, HytaleInventoryAccessor accessor) {
+            this.registrationId = registrationId;
+            this.accessor = accessor;
+        }
+        
+        @Override
+        public void unregister() {
+            if (active) {
+                accessor.removeSlotBlockFilter(registrationId);
+                active = false;
+            }
+        }
+        
+        @Override
+        public boolean isActive() {
+            return active;
+        }
     }
 }

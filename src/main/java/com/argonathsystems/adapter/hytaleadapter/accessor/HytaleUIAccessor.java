@@ -386,6 +386,217 @@ public class HytaleUIAccessor implements UIAccessor {
     }
 
     // ========================================================================
+    // Native HUD Control Methods
+    // ========================================================================
+    
+    /** Track hidden native HUD components per player: "playerId-componentId" -> true */
+    private final Map<String, Boolean> hiddenNativeHuds = new ConcurrentHashMap<>();
+    
+    /** Map of component IDs to HudComponent enum values */
+    private static final Map<String, com.hypixel.hytale.protocol.packets.interface_.HudComponent> HUD_COMPONENT_MAP;
+    
+    static {
+        HUD_COMPONENT_MAP = new java.util.HashMap<>();
+        HUD_COMPONENT_MAP.put("Hotbar", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Hotbar);
+        HUD_COMPONENT_MAP.put("hotbar", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Hotbar);
+        HUD_COMPONENT_MAP.put("StatusIcons", com.hypixel.hytale.protocol.packets.interface_.HudComponent.StatusIcons);
+        HUD_COMPONENT_MAP.put("Reticle", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Reticle);
+        HUD_COMPONENT_MAP.put("Chat", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Chat);
+        HUD_COMPONENT_MAP.put("Requests", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Requests);
+        HUD_COMPONENT_MAP.put("Notifications", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Notifications);
+        HUD_COMPONENT_MAP.put("KillFeed", com.hypixel.hytale.protocol.packets.interface_.HudComponent.KillFeed);
+        HUD_COMPONENT_MAP.put("InputBindings", com.hypixel.hytale.protocol.packets.interface_.HudComponent.InputBindings);
+        HUD_COMPONENT_MAP.put("PlayerList", com.hypixel.hytale.protocol.packets.interface_.HudComponent.PlayerList);
+        HUD_COMPONENT_MAP.put("EventTitle", com.hypixel.hytale.protocol.packets.interface_.HudComponent.EventTitle);
+        HUD_COMPONENT_MAP.put("Compass", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Compass);
+        HUD_COMPONENT_MAP.put("ObjectivePanel", com.hypixel.hytale.protocol.packets.interface_.HudComponent.ObjectivePanel);
+        HUD_COMPONENT_MAP.put("PortalPanel", com.hypixel.hytale.protocol.packets.interface_.HudComponent.PortalPanel);
+        HUD_COMPONENT_MAP.put("BuilderToolsLegend", com.hypixel.hytale.protocol.packets.interface_.HudComponent.BuilderToolsLegend);
+        HUD_COMPONENT_MAP.put("Speedometer", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Speedometer);
+        HUD_COMPONENT_MAP.put("UtilitySlotSelector", com.hypixel.hytale.protocol.packets.interface_.HudComponent.UtilitySlotSelector);
+        HUD_COMPONENT_MAP.put("BlockVariantSelector", com.hypixel.hytale.protocol.packets.interface_.HudComponent.BlockVariantSelector);
+        HUD_COMPONENT_MAP.put("BuilderToolsMaterialSlotSelector", com.hypixel.hytale.protocol.packets.interface_.HudComponent.BuilderToolsMaterialSlotSelector);
+        HUD_COMPONENT_MAP.put("Stamina", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Stamina);
+        HUD_COMPONENT_MAP.put("AmmoIndicator", com.hypixel.hytale.protocol.packets.interface_.HudComponent.AmmoIndicator);
+        HUD_COMPONENT_MAP.put("Health", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Health);
+        HUD_COMPONENT_MAP.put("Mana", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Mana);
+        HUD_COMPONENT_MAP.put("Oxygen", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Oxygen);
+        HUD_COMPONENT_MAP.put("Sleep", com.hypixel.hytale.protocol.packets.interface_.HudComponent.Sleep);
+    }
+
+    @Override
+    public void hideNativeHud(UUID playerId, String componentId) {
+        if (playerId == null || componentId == null || componentId.isBlank()) {
+            LOGGER.warn("hideNativeHud called with invalid parameters: player={}, component={}", playerId, componentId);
+            return;
+        }
+        
+        String key = buildKey(playerId, componentId);
+        hiddenNativeHuds.put(key, true);
+        
+        PlayerRef playerRef = getPlayerRef(playerId);
+        if (playerRef == null) {
+            LOGGER.debug("Cannot hide native HUD {}: player {} not found (may have disconnected)", componentId, playerId);
+            return;
+        }
+        
+        // Check if player reference is still valid before proceeding
+        var entityRef = playerRef.getReference();
+        if (entityRef == null || !entityRef.isValid()) {
+            LOGGER.debug("Cannot hide native HUD {}: player {} entity reference invalid (may be disconnecting)", 
+                componentId, playerId);
+            return;
+        }
+        
+        // Map componentId to HudComponent enum
+        com.hypixel.hytale.protocol.packets.interface_.HudComponent hudComponent = HUD_COMPONENT_MAP.get(componentId);
+        if (hudComponent == null) {
+            LOGGER.warn("Unknown HUD component: {}. Available components: {}", componentId, HUD_COMPONENT_MAP.keySet());
+            return;
+        }
+        
+        // Get the World and schedule on world thread
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            LOGGER.debug("Cannot hide native HUD {}: player {} has no world UUID (may be disconnecting)", componentId, playerId);
+            return;
+        }
+        
+        World world = Universe.get().getWorld(worldUuid);
+        if (world == null) {
+            LOGGER.debug("Cannot hide native HUD {}: world {} not found", componentId, worldUuid);
+            return;
+        }
+        
+        // Schedule on world thread
+        CompletableFuture.runAsync(() -> {
+            try {
+                // Re-check entity reference validity on world thread (may have changed)
+                var entityRefLocal = playerRef.getReference();
+                if (entityRefLocal == null || !entityRefLocal.isValid()) {
+                    LOGGER.debug("Cannot hide native HUD: player entity reference became invalid");
+                    return;
+                }
+                
+                Store<EntityStore> store = entityRefLocal.getStore();
+                if (store == null) {
+                    LOGGER.debug("Cannot hide native HUD: player store not available");
+                    return;
+                }
+                
+                // Get Player entity to access HudManager using correct API: getComponent(ref, componentType)
+                Player player = store.getComponent(entityRefLocal, Player.getComponentType());
+                if (player == null) {
+                    LOGGER.debug("Cannot hide native HUD: Player entity not found for {} (may be disconnecting)", playerId);
+                    return;
+                }
+                
+                com.hypixel.hytale.server.core.entity.entities.player.hud.HudManager hudManager = player.getHudManager();
+                hudManager.hideHudComponents(playerRef, hudComponent);
+                LOGGER.debug("Hidden native HUD '{}' for player {}", componentId, playerId);
+                
+            } catch (IllegalStateException e) {
+                // Expected during player disconnect - entity reference becomes invalid
+                LOGGER.debug("Could not hide native HUD {} for player {} (entity likely disconnecting): {}", 
+                    componentId, playerId, e.getMessage());
+            } catch (Exception e) {
+                LOGGER.error("Failed to hide native HUD {} for player {}", componentId, playerId, e);
+            }
+        }, world);
+    }
+
+    @Override
+    public void showNativeHud(UUID playerId, String componentId) {
+        if (playerId == null || componentId == null || componentId.isBlank()) {
+            LOGGER.warn("showNativeHud called with invalid parameters: player={}, component={}", playerId, componentId);
+            return;
+        }
+        
+        String key = buildKey(playerId, componentId);
+        hiddenNativeHuds.remove(key);
+        
+        PlayerRef playerRef = getPlayerRef(playerId);
+        if (playerRef == null) {
+            LOGGER.debug("Cannot show native HUD {}: player {} not found (may have disconnected)", componentId, playerId);
+            return;
+        }
+        
+        // Check if player reference is still valid before proceeding
+        var entityRef = playerRef.getReference();
+        if (entityRef == null || !entityRef.isValid()) {
+            LOGGER.debug("Cannot show native HUD {}: player {} entity reference invalid (may be disconnecting)", 
+                componentId, playerId);
+            return;
+        }
+        
+        // Map componentId to HudComponent enum
+        com.hypixel.hytale.protocol.packets.interface_.HudComponent hudComponent = HUD_COMPONENT_MAP.get(componentId);
+        if (hudComponent == null) {
+            LOGGER.warn("Unknown HUD component: {}. Available components: {}", componentId, HUD_COMPONENT_MAP.keySet());
+            return;
+        }
+        
+        // Get the World and schedule on world thread
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            LOGGER.debug("Cannot show native HUD {}: player {} has no world UUID (may be disconnecting)", componentId, playerId);
+            return;
+        }
+        
+        World world = Universe.get().getWorld(worldUuid);
+        if (world == null) {
+            LOGGER.debug("Cannot show native HUD {}: world {} not found", componentId, worldUuid);
+            return;
+        }
+        
+        // Schedule on world thread
+        CompletableFuture.runAsync(() -> {
+            try {
+                // Re-check entity reference validity on world thread (may have changed)
+                var entityRefLocal = playerRef.getReference();
+                if (entityRefLocal == null || !entityRefLocal.isValid()) {
+                    LOGGER.debug("Cannot show native HUD: player entity reference became invalid");
+                    return;
+                }
+                
+                Store<EntityStore> store = entityRefLocal.getStore();
+                if (store == null) {
+                    LOGGER.debug("Cannot show native HUD: player store not available");
+                    return;
+                }
+                
+                // Get Player entity to access HudManager using correct API: getComponent(ref, componentType)
+                Player player = store.getComponent(entityRefLocal, Player.getComponentType());
+                if (player == null) {
+                    LOGGER.debug("Cannot show native HUD: Player entity not found for {} (may be disconnecting)", playerId);
+                    return;
+                }
+                
+                com.hypixel.hytale.server.core.entity.entities.player.hud.HudManager hudManager = player.getHudManager();
+                hudManager.showHudComponents(playerRef, hudComponent);
+                LOGGER.debug("Restored native HUD '{}' for player {}", componentId, playerId);
+                
+            } catch (IllegalStateException e) {
+                // Expected during player disconnect - entity reference becomes invalid
+                LOGGER.debug("Could not show native HUD {} for player {} (entity likely disconnecting): {}", 
+                    componentId, playerId, e.getMessage());
+            } catch (Exception e) {
+                LOGGER.error("Failed to show native HUD {} for player {}", componentId, playerId, e);
+            }
+        }, world);
+    }
+
+    @Override
+    public boolean isNativeHudHidden(UUID playerId, String componentId) {
+        if (playerId == null || componentId == null) {
+            return false;
+        }
+        
+        String key = buildKey(playerId, componentId);
+        return hiddenNativeHuds.getOrDefault(key, false);
+    }
+
+    // ========================================================================
     // Modal Methods
     // ========================================================================
     
@@ -782,6 +993,10 @@ public class HytaleUIAccessor implements UIAccessor {
             }
             return false;
         });
+        
+        // Remove all hidden native HUD state for this player
+        hiddenNativeHuds.entrySet().removeIf(entry -> 
+            entry.getKey().startsWith(playerId.toString()));
     }
     
     /**
@@ -789,5 +1004,22 @@ public class HytaleUIAccessor implements UIAccessor {
      */
     public Optional<String> getRegisteredUI(String uiId) {
         return Optional.ofNullable(registeredUIs.get(uiId));
+    }
+    
+    // ========================================================================
+    // Player Readiness Check
+    // ========================================================================
+    
+    @Override
+    public boolean isPlayerReadyForUI(UUID playerId) {
+        PlayerRef playerRef = getPlayerRef(playerId);
+        if (playerRef == null) {
+            return false;
+        }
+        
+        // Check if player has a world UUID - this indicates they've completed 
+        // the world join process and are ready for UI operations
+        UUID worldUuid = playerRef.getWorldUuid();
+        return worldUuid != null;
     }
 }

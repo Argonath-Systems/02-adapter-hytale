@@ -1,5 +1,6 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
+import com.argonathsystems.adapter.hytale.packet.HotbarInteractionAdapter;
 import com.argonathsystems.framework.accessorapi.InputAccessor;
 import com.hypixel.hytale.server.core.HytaleServer;
 import org.slf4j.Logger;
@@ -9,6 +10,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -80,13 +82,56 @@ public class HytaleInputAccessor implements InputAccessor {
     /** Map of registration ID -> handler entry for fast unregistration */
     private final Map<Long, HandlerEntry> registrationsById = new ConcurrentHashMap<>();
     
+    /** Hotbar interaction adapter for slot filtering */
+    private final HotbarInteractionAdapter hotbarInteractionAdapter;
+    
+    /** List of active hotbar slot filters */
+    private final List<HotbarSlotFilterEntry> hotbarSlotFilters = new CopyOnWriteArrayList<>();
+    
     /** Reference to HytaleServer for potential future SDK integration */
     @SuppressWarnings("unused")
     private final HytaleServer server;
 
     public HytaleInputAccessor(Object server) {
         this.server = (HytaleServer) server;
+        this.hotbarInteractionAdapter = new HotbarInteractionAdapter();
+        
+        // Wire the composite filter to the adapter
+        hotbarInteractionAdapter.registerSlotFilter(this::processHotbarSlotFilters);
+        
         LOGGER.info("HytaleInputAccessor initialized - ready for input action handling");
+    }
+    
+    /**
+     * Get the hotbar interaction adapter for packet registration.
+     * 
+     * <p>This adapter should be registered with the packet adapter system
+     * during server initialization.</p>
+     * 
+     * @return The hotbar interaction adapter
+     */
+    public HotbarInteractionAdapter getHotbarInteractionAdapter() {
+        return hotbarInteractionAdapter;
+    }
+    
+    /**
+     * Process all registered hotbar slot filters.
+     * Returns true if ANY filter wants to block the slot switch.
+     */
+    private boolean processHotbarSlotFilters(UUID playerId, Integer slotIndex) {
+        for (HotbarSlotFilterEntry entry : hotbarSlotFilters) {
+            try {
+                if (entry.filter.test(playerId, slotIndex)) {
+                    LOGGER.trace("Hotbar slot {} blocked for player {} by filter {}", 
+                        slotIndex, playerId, entry.registrationId);
+                    return true; // Block
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error in hotbar slot filter (id={}): {}", 
+                    entry.registrationId, e.getMessage(), e);
+            }
+        }
+        return false; // Allow
     }
 
     // =========================================================================
@@ -350,6 +395,66 @@ public class HytaleInputAccessor implements InputAccessor {
         @Override
         public boolean isConsumed() {
             return consumed;
+        }
+    }
+    
+    // =========================================================================
+    // Hotbar Slot Filtering (SM-UI-050)
+    // =========================================================================
+    
+    @Override
+    public HotbarFilterRegistration registerHotbarSlotFilter(BiPredicate<UUID, Integer> filter) {
+        Objects.requireNonNull(filter, "filter cannot be null");
+        
+        long registrationId = REGISTRATION_ID_COUNTER.incrementAndGet();
+        HotbarSlotFilterEntry entry = new HotbarSlotFilterEntry(registrationId, filter);
+        hotbarSlotFilters.add(entry);
+        
+        LOGGER.debug("Registered hotbar slot filter (id={})", registrationId);
+        
+        return new HytaleHotbarFilterRegistration(registrationId, this);
+    }
+    
+    /**
+     * Remove a hotbar slot filter by registration ID.
+     */
+    private void removeHotbarSlotFilter(long registrationId) {
+        hotbarSlotFilters.removeIf(entry -> entry.registrationId == registrationId);
+        LOGGER.debug("Unregistered hotbar slot filter (id={})", registrationId);
+    }
+    
+    /**
+     * Entry for tracking hotbar slot filters.
+     */
+    private record HotbarSlotFilterEntry(
+        long registrationId,
+        BiPredicate<UUID, Integer> filter
+    ) {}
+    
+    /**
+     * Implementation of HotbarFilterRegistration.
+     */
+    private static class HytaleHotbarFilterRegistration implements HotbarFilterRegistration {
+        private final long registrationId;
+        private final HytaleInputAccessor accessor;
+        private volatile boolean active = true;
+        
+        HytaleHotbarFilterRegistration(long registrationId, HytaleInputAccessor accessor) {
+            this.registrationId = registrationId;
+            this.accessor = accessor;
+        }
+        
+        @Override
+        public void unregister() {
+            if (active) {
+                accessor.removeHotbarSlotFilter(registrationId);
+                active = false;
+            }
+        }
+        
+        @Override
+        public boolean isActive() {
+            return active;
         }
     }
 }

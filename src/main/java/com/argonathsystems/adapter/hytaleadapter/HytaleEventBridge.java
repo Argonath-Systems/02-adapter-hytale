@@ -69,6 +69,10 @@ public class HytaleEventBridge {
      * 
      * <p>Should be called during framework initialization, after the EventAccessor
      * is available.</p>
+     * 
+     * <p><b>Note:</b> PlayerReadyEvent is registered in HytaleAdapterPlugin using
+     * getEventRegistry().registerGlobal() because PlayerReadyEvent extends PlayerEvent,
+     * not IBaseEvent, and cannot be registered via EventBus.register().</p>
      */
     public void registerBridges() {
         LOGGER.info("Registering SDK → Framework event bridges...");
@@ -84,6 +88,10 @@ public class HytaleEventBridge {
         );
         registrations.add(connectReg);
         LOGGER.debug("  ✓ PlayerConnectEvent → PlayerJoinEvent bridge registered");
+        
+        // Note: PlayerReadyEvent bridge is registered in HytaleAdapterPlugin
+        // because it extends PlayerEvent (not IBaseEvent) and requires
+        // JavaPlugin.getEventRegistry().registerGlobal() for registration.
         
         // Bridge PlayerDisconnectEvent → PlayerQuitEvent
         // PlayerDisconnectEvent extends PlayerRefEvent<Void>

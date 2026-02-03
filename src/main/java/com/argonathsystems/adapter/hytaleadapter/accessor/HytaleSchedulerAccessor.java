@@ -2,8 +2,14 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 
 import com.argonathsystems.framework.accessorapi.SchedulerAccessor;
 import com.hypixel.hytale.server.core.task.TaskRegistration;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -15,6 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>SDK Classes Used:</p>
  * <ul>
  *   <li>{@code com.hypixel.hytale.server.core.task.TaskRegistration} - Wraps ScheduledFuture</li>
+ *   <li>{@code com.hypixel.hytale.server.core.universe.world.World} - For world.execute() thread safety</li>
  * </ul>
  * 
  * <p>Implementation uses Java's ScheduledExecutorService for task scheduling,
@@ -25,6 +32,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * @since MIGRATION-001
  */
 public class HytaleSchedulerAccessor implements SchedulerAccessor {
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(HytaleSchedulerAccessor.class);
     
     private static final ScheduledExecutorService SYNC_EXECUTOR = 
         Executors.newSingleThreadScheduledExecutor(r -> {
@@ -76,6 +85,36 @@ public class HytaleSchedulerAccessor implements SchedulerAccessor {
     public ScheduledTask runTaskLaterAsync(Runnable task, long delay, TimeUnit unit) {
         ScheduledFuture<?> future = ASYNC_EXECUTOR.schedule(task, delay, unit);
         return wrapTask(future);
+    }
+    
+    @Override
+    public void runOnWorldThread(UUID playerId, Runnable task) {
+        if (playerId == null || task == null) {
+            LOGGER.warn("[SCHEDULER] Cannot run task on world thread: playerId or task is null");
+            return;
+        }
+        
+        PlayerRef playerRef = Universe.get().getPlayer(playerId);
+        if (playerRef == null || !playerRef.isValid()) {
+            LOGGER.info("[SCHEDULER] Cannot run task on world thread: player {} not found or invalid", playerId);
+            return;
+        }
+        
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            LOGGER.info("[SCHEDULER] Cannot run task on world thread: player {} has no world", playerId);
+            return;
+        }
+        
+        World world = Universe.get().getWorld(worldUuid);
+        if (world == null) {
+            LOGGER.info("[SCHEDULER] Cannot run task on world thread: world {} not found", worldUuid);
+            return;
+        }
+        
+        LOGGER.info("[SCHEDULER] Executing task on world thread for player {}", playerId);
+        // Execute on the world thread - this is the proper way to access player components
+        world.execute(task);
     }
     
     @Override
