@@ -49,27 +49,35 @@ public class HytaleAdapterPlugin extends JavaPlugin {
         super(init);
         
         // NOTE: When deployed via FrameworkLoader, this plugin is NOT loaded.
-        // FrameworkLoaderPlugin handles all initialization including:
-        // - HytaleAdapterProvider creation and registration
-        // - HytaleEventBridge setup (PlayerJoinEvent, PlayerQuitEvent)
-        // - PlayerReadyEvent bridge registration (requires JavaPlugin context)
+        // FrameworkLoaderPlugin handles all initialization.
         //
-        // This constructor is only used for standalone adapter deployment.
+        // Constructor only creates the provider and registers it.
+        // Event registration and packet adapters are deferred to setup().
         
         try {
             // Initialize and register AccessorProvider EARLY
             Object coreServer = HytaleServer.get();
             provider = new HytaleAdapterProvider(coreServer);
             AccessorRegistry.registerProvider(provider);
-            getLogger().at(Level.INFO).log("HytaleAdapterProvider initialized and registered.");
+            getLogger().at(Level.INFO).log("HytaleAdapterProvider initialized and registered (constructor).");
             
+        } catch (Exception e) {
+            getLogger().at(Level.SEVERE).withCause(e).log("Failed to initialize HytaleAdapterPlugin");
+            throw new RuntimeException("Critical setup failure", e);
+        }
+    }
+    
+    /**
+     * Called by Hytale PluginManager during SETUP phase.
+     * 
+     * <p>At this point EventRegistry is available. Registers packet adapters,
+     * loads ArgonathMods via ServiceLoader.</p>
+     */
+    @Override
+    protected void setup() {
+        try {
             // Register packet adapters for hotbar and inventory interception
             registerPacketAdapters(provider);
-            
-            // NOTE: PlayerReadyEvent bridge is NOT registered here.
-            // When using this plugin standalone, PlayerReadyEvent requires
-            // getEventRegistry().registerGlobal() which is available here.
-            // TODO: Add PlayerReadyEvent registration if standalone deployment is needed.
             
             // Load Platform-Agnostic Mods via ServiceLoader
             ServiceLoader<ArgonathMod> loader = ServiceLoader.load(ArgonathMod.class, getClass().getClassLoader());
@@ -85,10 +93,9 @@ public class HytaleAdapterPlugin extends JavaPlugin {
                  }
             }
             getLogger().at(Level.INFO).log("Loaded " + count + " Argonath Mods.");
-
+            
         } catch (Exception e) {
-            getLogger().at(Level.SEVERE).withCause(e).log("Failed to initialize HytaleAdapterPlugin");
-            throw new RuntimeException("Critical setup failure", e);
+            getLogger().at(Level.SEVERE).withCause(e).log("Failed during HytaleAdapterPlugin setup");
         }
     }
     
@@ -120,7 +127,12 @@ public class HytaleAdapterPlugin extends JavaPlugin {
         }
     }
     
-    public void onDisable() {
+    /**
+     * Called by Hytale PluginManager during SHUTDOWN phase.
+     * Deregisters packet adapters and disables all loaded mods.
+     */
+    @Override
+    protected void shutdown() {
         getLogger().at(Level.INFO).log("Disabling Argonath Mods...");
         
         // Unregister packet adapters

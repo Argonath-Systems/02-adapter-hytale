@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Multi-Hotbar Packet Desync (2026-02-06)
+
+- **HotbarInteractionAdapter**: Added `SetActiveSlot` resync after blocking `SyncInteractionChains` packets
+  - Root cause: Client performs slot switch locally *before* the server confirms it. When the server blocks the packet, client and server are on different slots
+  - Fix: Capture `previousSlot` before processing, then send `SetActiveSlot(HOTBAR_SECTION_ID, correctSlot)` via `playerRef.getPacketHandler().write()` after blocking
+  - Also updates server-side via `playerComponent.getInventory().setActiveHotbarSlot()` on world thread
+  - Resolves: Slots appearing blocked even when `shouldBlock=false` (cascading desync)
+
+- **InventoryBlockAdapter**: Added `player.sendInventory()` resync after blocking `MoveItemStack`/`SmartMoveItemStack` packets
+  - Root cause: Client performs item move locally before server confirms. Blocking the packet without resync causes items to "disappear" visually
+  - Fix: Call `resyncClientInventory()` which schedules `player.sendInventory()` on world thread after any blocked packet
+  - Also added FROM-slot blocking: prevents removing items FROM locked slots (previously only blocked TO-slot placement)
+  - Resolves: Looted items despawning and inventory desync
+
+### Fixed - Real Hytale API Alignment (2026-02-05)
+
+- **Critical**: Discovered via jar decompilation that `com.hypixel.hytale.server.plugin.component` package is fabricated and doesn't exist in real Hytale API
+- **ECS Component imports**: Changed all 5 components from `server.plugin.component.Component` → `component.Component`
+- **UUID codec**: Changed `Codec.UUID` → `Codec.UUID_BINARY` (real API field name)
+- **Builder pattern**: Changed `.append()` → `.addField()` in all 7 CODEC definitions (5 top-level + 2 nested classes) to avoid `FieldBuilder` intermediary
+- **Registry**: Changed `ArgonathComponentRegistry` from `EntityStoreRegistry` → `ComponentRegistryProxy<EntityStore>`
+- **Dependency**: Added `argonath-hall-stats` dependency for `PlayerStatsData` class access
+- **FrameworkLoaderPlugin**: Fixed reflection call to use `ComponentRegistryProxy.class` instead of fabricated `EntityStoreRegistry`
+
+### Added - ECS Persistence Bridge (2026-02-04)
+
+- **SF-ARCHITECTURE-028**: ECS Component Bridge for Player Data Persistence
+  - Bridges platform-agnostic POJOs with Hytale's native `Component<EntityStore>` system
+  - Automatic persistence through Hytale's BSON serialization
+
+- **New ECS Package** (`com.argonathsystems.adapter.hytale.ecs`):
+  - `ArgonathPlayerStatsComponent` - Wraps `PlayerStatsData` for ECS persistence
+  - `ArgonathMountCollectionComponent` - Mount collection with nested `MountDataEntry`
+  - `ArgonathCombatStatsComponent` - Combat statistics (kills, deaths, damage, PvP rating)
+  - `ArgonathNPCRelationshipComponent` - Player-NPC relationships with nested entries
+  - `ArgonathGuildMembershipComponent` - Guild membership status and permissions
+  - `ArgonathComponentRegistry` - Central registry for component type management
+  - `ArgonathComponentSyncService` - Player join/quit lifecycle sync
+
+- **Event Bridge Integration**:
+  - `HytaleEventBridge.handlePlayerConnect()` - Now calls ECS sync on player join
+  - `HytaleEventBridge.handlePlayerDisconnect()` - Now calls ECS sync on player quit
+  - Data is loaded from EntityStore on join and saved on quit automatically
+
 ### Fixed - HyUI Threading Issue (2026-02-01)
 
 - **HytaleUIAccessor** (`openUI`, `openModal`, `openPage`):

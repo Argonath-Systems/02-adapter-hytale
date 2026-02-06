@@ -1,10 +1,110 @@
 # Hytale Adapter - Implementation Tracking
 
 > **Module**: `02-adapter-hytale`  
-> **Status**: ✅ BUILD SUCCESS - SDK Integration Complete  
-> **Last Updated**: 2026-01-31  
-> **Version**: 3.6.0-AUDIT-REMEDIATION-COMPLETE  
-> **Audit Date**: 2026-01-31
+> **Status**: ✅ BUILD SUCCESS - Real Hytale API Aligned  
+> **Last Updated**: 2026-02-05  
+> **Version**: 4.0.0-ECS-PERSISTENCE-BRIDGE  
+> **Audit Date**: 2026-02-05
+
+---
+
+## 🔧 Real Hytale API Alignment (2026-02-05)
+
+### Critical Discovery
+Decompilation of the real `HytaleServer-parent-1.0-SNAPSHOT.jar` revealed that the entire `com.hypixel.hytale.server.plugin.component` package was **fabricated** and doesn't exist in the real API. All ECS types live in `com.hypixel.hytale.component.*`.
+
+### Changes Applied
+
+| File | Change | Reason |
+|------|--------|--------|
+| All 5 ECS components | `server.plugin.component.Component` → `component.Component` | Real API package |
+| All 5 ECS components | `Codec.UUID` → `Codec.UUID_BINARY` | `Codec.UUID` doesn't exist in real API |
+| All 5 ECS components + 2 nested classes | `.append()` → `.addField()` | Real `append()` returns `FieldBuilder`, `addField()` returns `Builder` directly |
+| `ArgonathComponentRegistry` | `EntityStoreRegistry` → `ComponentRegistryProxy<EntityStore>` | `EntityStoreRegistry` doesn't exist |
+| `ArgonathComponentRegistry` | Imports: `server.plugin.component.*` → `component.*` | Real API package |
+| `pom.xml` | Added `argonath-hall-stats` dependency | `PlayerStatsData` now on classpath |
+| `package-info.java` | Fixed Javadoc `@link` reference | Package path corrected |
+
+### SDK Mock Fixes (01-platform-sdk)
+
+| File | Change |
+|------|--------|
+| `BuilderCodec.java` | Rewrote with `builder(Class, Supplier)` factory, `Builder<T>` inner class, `addField()` / `append()` |
+| `KeyedCodec.java` | Fixed from `<T,V>` to `<FieldType>`, added `of()` factory |
+| `Codec.java` | `UUID` → `UUID_BINARY` + `UUID_STRING` to match real API constants |
+| `Component.java` | Already correct: `interface Component<ECS_TYPE> extends Cloneable` |
+| `ComponentType.java` | Already correct: `class ComponentType<ECS_TYPE, T extends Component<ECS_TYPE>>` |
+| `Store.java` | Already correct: class with `getComponent()`, `ensureAndGetComponent()` |
+| `Ref.java` | Already correct: class with `getStore()`, `isValid()` |
+| `ComponentRegistryProxy.java` | Already correct: `registerComponent(Class<? super T>, String, BuilderCodec<T>)` |
+
+### Framework Loader Fix (02-framework-loader)
+
+| File | Change |
+|------|--------|
+| `FrameworkLoaderPlugin.java` | Reflection call now uses `ComponentRegistryProxy.class` instead of fabricated `EntityStoreRegistry` |
+
+### Key Insight
+Since both the real `HytaleServer-parent` jar and the SDK mock are on the compile classpath (`provided` scope), the real jar's classes override mock stubs for any classes that exist in both. SDK mocks are only useful for classes that don't exist in the real jar.
+
+---
+
+## 🆕 ECS Persistence Bridge Implementation (2026-02-04)
+
+### SF-ARCHITECTURE-028 - ECS Component Bridge for Player Data Persistence
+
+**Purpose**: Bridge platform-agnostic POJOs with Hytale's native ECS `Component<EntityStore>` system for automatic persistence.
+
+### New Files Created
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `ecs/ArgonathPlayerStatsComponent.java` | Wraps `PlayerStatsData` for ECS persistence | ✅ Complete |
+| `ecs/ArgonathMountCollectionComponent.java` | Wraps mount collection with nested `MountDataEntry` | ✅ Complete |
+| `ecs/ArgonathCombatStatsComponent.java` | Combat statistics (kills, deaths, damage, PvP rating) | ✅ Complete |
+| `ecs/ArgonathNPCRelationshipComponent.java` | Player-NPC relationships with nested entries | ✅ Complete |
+| `ecs/ArgonathGuildMembershipComponent.java` | Guild membership status and permissions | ✅ Complete |
+| `ecs/ArgonathComponentRegistry.java` | Central registry for component type management | ✅ Complete |
+| `ecs/ArgonathComponentSyncService.java` | Player join/quit lifecycle sync between POJOs and ECS | ✅ Complete |
+| `ecs/package-info.java` | Package documentation | ✅ Complete |
+
+### Architecture Changes
+
+| Component | Change | Location |
+|-----------|--------|----------|
+| `HytaleEventBridge` | Added ECS sync on player join/quit | `handlePlayerConnect`, `handlePlayerDisconnect` |
+| `FrameworkLoaderPlugin` | Added ECS registry initialization | `initializeECSComponents()` |
+| `FrameworkLoaderPlugin` | Added force sync on shutdown | `onDisable()` |
+
+### Key Features
+
+1. **Component Wrappers**: Each component implements `Component<EntityStore>` with full `BuilderCodec` for BSON serialization
+2. **Registry Pattern**: Centralized registration via `ArgonathComponentRegistry.initializeAll()`
+3. **Lifecycle Sync**: Automatic load on join, save on quit via `ArgonathComponentSyncService`
+4. **Provider Pattern**: Framework modules register providers for bidirectional data sync
+5. **Force Sync**: Server shutdown triggers `forceSyncAll()` for data safety
+
+### Hytale SDK APIs Used (Verified via jar decompilation 2026-02-05)
+
+| API | Package | Purpose |
+|-----|---------|---------|
+| `Component<ECS_TYPE>` | `com.hypixel.hytale.component` | Base interface for persistent components (extends Cloneable) |
+| `ComponentRegistryProxy<ECS_TYPE>` | `com.hypixel.hytale.component` | Plugin-facing component registration |
+| `BuilderCodec<T>` | `com.hypixel.hytale.codec.builder` | BSON serialization codec (use `addField()` for chaining) |
+| `KeyedCodec<FieldType>` | `com.hypixel.hytale.codec` | Field-by-field encoding (single type param) |
+| `Codec.UUID_BINARY` | `com.hypixel.hytale.codec` | UUID codec for BSON binary encoding |
+| `Store.ensureAndGetComponent()` | `com.hypixel.hytale.component` | Load-or-create pattern |
+| `Store.getComponent()` | `com.hypixel.hytale.component` | Get existing component (nullable) |
+
+### Pending Work
+
+| Task | Priority | Notes |
+|------|----------|-------|
+| Implement framework providers | High | Each framework needs to implement `*Provider` interfaces |
+| Add Housing component | Medium | Based on `HouseData` POJO |
+| Add CharacterRaces component | Medium | Based on `CharacterProfile` POJO |
+| Write unit tests | Medium | Mock `ComponentRegistryProxy` and `Store<EntityStore>` |
+| Add periodic sync | Low | Background task for safety saves |
 
 ---
 

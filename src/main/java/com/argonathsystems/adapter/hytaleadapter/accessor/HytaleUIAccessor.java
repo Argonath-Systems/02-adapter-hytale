@@ -311,17 +311,40 @@ public class HytaleUIAccessor implements UIAccessor {
             return;
         }
         
-        try {
-            HyUIHud hud = HudBuilder.hudForPlayer(playerRef)
-                .fromHtml(content)
-                .show();
-            
-            activeHuds.put(buildKey(playerId, hudId), hud);
-            LOGGER.debug("Added HUD {} for player {}", hudId, playerId);
-            
-        } catch (Exception e) {
-            LOGGER.error("Failed to add HUD {} for player {}", hudId, playerId, e);
+        // HyUI .show(store) MUST be called on the world thread with a valid Store.
+        // See: https://hyui.gitbook.io/docs - "HUD Building" section.
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            LOGGER.warn("Cannot add HUD {}: player {} has no world UUID", hudId, playerId);
+            return;
         }
+        
+        World world = Universe.get().getWorld(worldUuid);
+        if (world == null) {
+            LOGGER.warn("Cannot add HUD {}: world {} not found for player {}", hudId, worldUuid, playerId);
+            return;
+        }
+        
+        // Schedule HUD creation on world thread (CRITICAL: .show(store) requires world thread)
+        CompletableFuture.runAsync(() -> {
+            try {
+                Store<EntityStore> store = getPlayerStore(playerRef);
+                if (store == null) {
+                    LOGGER.warn("Cannot add HUD {}: player {} has no store context (on world thread)", hudId, playerId);
+                    return;
+                }
+                
+                HyUIHud hud = HudBuilder.hudForPlayer(playerRef)
+                    .fromHtml(content)
+                    .show(store);
+                
+                activeHuds.put(buildKey(playerId, hudId), hud);
+                LOGGER.debug("Added HUD {} for player {}", hudId, playerId);
+                
+            } catch (Exception e) {
+                LOGGER.error("Failed to add HUD {} for player {}", hudId, playerId, e);
+            }
+        }, world);
     }
 
     @Override
@@ -340,14 +363,12 @@ public class HytaleUIAccessor implements UIAccessor {
         HyUIHud existingHud = activeHuds.get(key);
         
         if (existingHud != null) {
-            // Update existing HUD using HyUI's builder pattern
-            PlayerRef playerRef = getPlayerRef(playerId);
-            if (playerRef != null) {
-                HudBuilder.detachedHud()
-                    .fromHtml(content)
-                    .updateExisting(existingHud);
-                LOGGER.trace("Updated HUD {} for player {}", hudId, playerId);
-            }
+            // Remove the old HUD and create a fresh one with the new content.
+            // HyUI's updateExisting() via detachedHud() is unreliable for full content replacement.
+            // Instead, we remove + re-add which guarantees the new HyUIML is rendered correctly.
+            existingHud.remove();
+            activeHuds.remove(key);
+            addHud(playerId, hudId, content);
         } else {
             // HUD doesn't exist, create it
             addHud(playerId, hudId, content);

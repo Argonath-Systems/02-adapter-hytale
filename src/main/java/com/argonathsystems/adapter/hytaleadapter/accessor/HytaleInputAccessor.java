@@ -131,6 +131,9 @@ public class HytaleInputAccessor implements InputAccessor {
                     entry.registrationId, e.getMessage(), e);
             }
         }
+        // No filter blocked — track the new current slot so previousSlot is correct
+        // in subsequent HotbarSlotContext instances
+        updateCurrentSlot(playerId, slotIndex);
         return false; // Allow
     }
 
@@ -415,6 +418,42 @@ public class HytaleInputAccessor implements InputAccessor {
         return new HytaleHotbarFilterRegistration(registrationId, this);
     }
     
+    @Override
+    public HotbarFilterRegistration registerHotbarSlotHandler(HotbarSlotHandler handler) {
+        Objects.requireNonNull(handler, "handler cannot be null");
+        
+        // Wrap the HotbarSlotHandler in a BiPredicate<UUID, Integer> filter
+        // that creates a HotbarSlotContext for each invocation
+        BiPredicate<UUID, Integer> wrappedFilter = (playerId, slotIndex) -> {
+            HotbarSlotContext context = new DefaultHotbarSlotContext(
+                playerId, slotIndex,
+                currentSlots.getOrDefault(playerId, 0),
+                System.currentTimeMillis(),
+                true // isInitialInteraction
+            );
+            return handler.handle(context);
+        };
+        
+        long registrationId = REGISTRATION_ID_COUNTER.incrementAndGet();
+        HotbarSlotFilterEntry entry = new HotbarSlotFilterEntry(registrationId, wrappedFilter);
+        hotbarSlotFilters.add(entry);
+        
+        LOGGER.info("Registered hotbar slot handler (id={})", registrationId);
+        
+        return new HytaleHotbarFilterRegistration(registrationId, this);
+    }
+    
+    /** Track currently selected slots per player for context building */
+    private final Map<UUID, Integer> currentSlots = new ConcurrentHashMap<>();
+    
+    /**
+     * Update the tracked current slot for a player.
+     * Called when a slot selection is allowed through.
+     */
+    public void updateCurrentSlot(UUID playerId, int slotIndex) {
+        currentSlots.put(playerId, slotIndex);
+    }
+    
     /**
      * Remove a hotbar slot filter by registration ID.
      */
@@ -455,6 +494,62 @@ public class HytaleInputAccessor implements InputAccessor {
         @Override
         public boolean isActive() {
             return active;
+        }
+    }
+    
+    /**
+     * Default implementation of HotbarSlotContext for the handler pattern.
+     */
+    private static class DefaultHotbarSlotContext implements HotbarSlotContext {
+        private final UUID playerId;
+        private final int targetSlot;
+        private final int previousSlot;
+        private final long timestamp;
+        private final boolean initialInteraction;
+        private volatile boolean consumed = false;
+        
+        DefaultHotbarSlotContext(UUID playerId, int targetSlot, int previousSlot, 
+                long timestamp, boolean initialInteraction) {
+            this.playerId = playerId;
+            this.targetSlot = targetSlot;
+            this.previousSlot = previousSlot;
+            this.timestamp = timestamp;
+            this.initialInteraction = initialInteraction;
+        }
+        
+        @Override
+        public UUID getPlayerId() {
+            return playerId;
+        }
+        
+        @Override
+        public int getTargetSlot() {
+            return targetSlot;
+        }
+        
+        @Override
+        public int getPreviousSlot() {
+            return previousSlot;
+        }
+        
+        @Override
+        public long getTimestamp() {
+            return timestamp;
+        }
+        
+        @Override
+        public boolean isInitialInteraction() {
+            return initialInteraction;
+        }
+        
+        @Override
+        public void consume() {
+            consumed = true;
+        }
+        
+        @Override
+        public boolean isConsumed() {
+            return consumed;
         }
     }
 }

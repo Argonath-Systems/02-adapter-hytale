@@ -37,6 +37,14 @@
             <version>${hytale.version}</version>
             <scope>provided</scope>
         </dependency>
+        
+        <!-- SDK Mock - Provides stub implementations for compilation -->
+        <dependency>
+            <groupId>com.argonathsystems.test</groupId>
+            <artifactId>hytale-sdk-mock</artifactId>
+            <version>${hytale.version}</version>
+            <scope>provided</scope>
+        </dependency>
 
         <!-- =====================================================
              FRAMEWORK DEPENDENCIES (implements these interfaces)
@@ -95,6 +103,13 @@
         <dependency>
             <groupId>com.argonathsystems.framework</groupId>
             <artifactId>argonath-prancing-pony-npc</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        
+        <!-- Stats Framework - Player statistics models and persistence POJOs -->
+        <dependency>
+            <groupId>com.argonathsystems.framework</groupId>
+            <artifactId>argonath-hall-stats</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
         

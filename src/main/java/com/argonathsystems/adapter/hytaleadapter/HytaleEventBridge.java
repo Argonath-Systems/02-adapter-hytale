@@ -1,5 +1,6 @@
 package com.argonathsystems.adapter.hytaleadapter;
 
+import com.argonathsystems.adapter.hytale.ecs.ArgonathComponentSyncService;
 import com.argonathsystems.framework.accessorapi.EventAccessor;
 import com.argonathsystems.framework.accessorapi.event.PlayerJoinEvent;
 import com.argonathsystems.framework.accessorapi.event.PlayerQuitEvent;
@@ -129,6 +130,10 @@ public class HytaleEventBridge {
     
     /**
      * Handle PlayerConnectEvent from SDK, emit PlayerJoinEvent to framework.
+     * 
+     * <p>Note: ECS component sync is NOT done here because the player's EntityStore
+     * is not fully ready until PlayerReadyEvent. The sync is triggered from
+     * FrameworkLoaderPlugin's PlayerReadyEvent handler.</p>
      */
     private void handlePlayerConnect(PlayerConnectEvent event) {
         try {
@@ -143,6 +148,8 @@ public class HytaleEventBridge {
             
             LOGGER.debug("Bridging PlayerConnectEvent → PlayerJoinEvent for {} ({})", playerName, playerId);
             
+            // Note: ECS sync happens in PlayerReadyEvent when store is fully available
+            
             // Create and emit framework event
             PlayerJoinEvent joinEvent = new PlayerJoinEvent(playerId, playerName);
             eventAccessor.emit(joinEvent);
@@ -156,6 +163,7 @@ public class HytaleEventBridge {
     
     /**
      * Handle PlayerDisconnectEvent from SDK, emit PlayerQuitEvent to framework.
+     * Also triggers ECS component sync to save player data to EntityStore.
      */
     private void handlePlayerDisconnect(PlayerDisconnectEvent event) {
         try {
@@ -173,6 +181,16 @@ public class HytaleEventBridge {
             
             LOGGER.debug("Bridging PlayerDisconnectEvent → PlayerQuitEvent for {} ({}), reason: {}", 
                 playerName, playerId, disconnectReason);
+            
+            // Sync POJOs back to ECS components before player leaves
+            // This saves updated data to EntityStore for persistence
+            try {
+                ArgonathComponentSyncService.onPlayerQuit(playerId);
+                LOGGER.debug("ECS component sync (save) completed for player {}", playerName);
+            } catch (Exception e) {
+                LOGGER.warn("ECS component sync (save) failed for player {} (non-fatal): {}", playerName, e.getMessage());
+                // Non-fatal - continue with event emission
+            }
             
             // Create and emit framework event
             PlayerQuitEvent quitEvent = new PlayerQuitEvent(playerId, playerName + " left the game");
