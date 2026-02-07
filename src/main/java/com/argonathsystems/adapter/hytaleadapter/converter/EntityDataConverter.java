@@ -98,7 +98,7 @@ public class EntityDataConverter {
             return new EntityData(uuid, entityType, null, location, health, maxHealth);
             
         } catch (Exception e) {
-            LOGGER.warn("Failed to convert entity to DTO: {}", e.getMessage());
+            LOGGER.warn("Failed to convert entity to DTO: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -151,7 +151,7 @@ public class EntityDataConverter {
             return new EntityData(uuid, "entity", null, location, health, maxHealth);
             
         } catch (Exception e) {
-            LOGGER.warn("Failed to convert entity ref to DTO: {}", e.getMessage());
+            LOGGER.warn("Failed to convert entity ref to DTO: {}", e.getMessage(), e);
             return null;
         }
     }

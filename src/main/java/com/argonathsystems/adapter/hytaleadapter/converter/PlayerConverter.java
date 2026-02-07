@@ -5,6 +5,8 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Converts between Hytale Player/PlayerRef and platform-agnostic PlayerData DTO.
@@ -33,6 +35,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
  * @since MIGRATION-001
  */
 public class PlayerConverter {
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(PlayerConverter.class);
     
     /**
      * Standard health stat index in EntityStatMap.
@@ -119,7 +123,7 @@ public class PlayerConverter {
                 }
             }
         } catch (Exception e) {
-            // Stats access failed - use defaults
+            LOGGER.debug("Stats access failed for player, using defaults: {}", e.getMessage());
         }
         
         return new PlayerData(uuid, displayName, health, maxHealth);

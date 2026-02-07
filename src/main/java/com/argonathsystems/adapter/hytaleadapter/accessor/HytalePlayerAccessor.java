@@ -2,16 +2,23 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 
 import com.argonathsystems.adapter.hytaleadapter.converter.LocationConverter;
 import com.argonathsystems.adapter.hytaleadapter.converter.PlayerConverter;
+import com.argonathsystems.adapter.hytale.permission.PermissionProvider;
 import com.argonathsystems.framework.accessorapi.PlayerAccessor;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
 import com.argonathsystems.framework.accessorapi.dto.PlayerData;
 import com.argonathsystems.framework.accessorapi.platform.PlatformEntity;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
+import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -145,14 +152,38 @@ public class HytalePlayerAccessor implements PlayerAccessor {
             return;
         }
         
-        // Health is managed via EntityStatMap component in ECS
-        // This requires ECS component access through the PlayerRef
-        // 
-        // For now, mark as partial implementation - needs ECS integration
-        throw new UnsupportedOperationException(
-            "setHealth requires ECS ComponentAccessor integration. " +
-            "Access EntityStatMap via PlayerRef.getComponent(EntityStatMap.getComponentType())."
-        );
+        // Health is managed via EntityStatMap component in ECS.
+        // Must execute on world thread for thread safety (ECS store access).
+        // Pattern: PlayerRef → getWorldUuid() → Universe.getWorld() → world.execute()
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            return;
+        }
+        
+        World world = Universe.get().getWorld(worldUuid);
+        if (world == null) {
+            return;
+        }
+        
+        world.execute(() -> {
+            Ref<EntityStore> ref = playerRef.getReference();
+            if (ref == null || !ref.isValid()) {
+                return;
+            }
+            
+            Store<EntityStore> store = ref.getStore();
+            if (store == null) {
+                return;
+            }
+            
+            EntityStatMap statMap = store.getComponent(ref, EntityStatMap.getComponentType());
+            if (statMap == null) {
+                return;
+            }
+            
+            int healthIndex = DefaultEntityStatTypes.getHealth();
+            statMap.setStatValue(healthIndex, (float) Math.max(0, health));
+        });
     }
     
     @Override
@@ -162,11 +193,10 @@ public class HytalePlayerAccessor implements PlayerAccessor {
             return false;
         }
         
-        // TODO: Integrate with Hytale's permission system when available
-        // The Hytale SDK does not currently expose a permission API.
-        // This implementation returns true (fail-open) for development.
-        // In production, integrate with a custom permission provider or external system.
-        return true;
+        // Hytale SDK does not expose a native permission API.
+        // Delegate to custom PermissionProvider (config-based role→permission mapping).
+        // See: SA-ADAPTER-001 (HA-004), SF-ACCESSOR-API-010 (AA-020)
+        return PermissionProvider.getInstance().hasPermission(playerId, permission);
     }
     
     @Override

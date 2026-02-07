@@ -24,6 +24,9 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -80,6 +83,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @since MIGRATION-001
  */
 public class HytaleNPCEntityAccessor implements EntityAccessor {
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(HytaleNPCEntityAccessor.class);
     
     private final HytaleServer server;
     
@@ -418,11 +423,45 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
 
     @Override
     public void navigateTo(UUID entityId, LocationData target) {
-        // TODO: Implement via pathfinding API
-        throw new UnsupportedOperationException(
-            "HytaleNPCEntityAccessor.navigateTo() requires pathfinding integration. " +
-            "Research needed: PathfindingComponent, MovementController patterns."
-        );
+        if (entityId == null || target == null) {
+            return;
+        }
+        
+        World world = getWorld();
+        if (world == null) {
+            return;
+        }
+        
+        // Execute on world thread for thread safety (ECS access)
+        world.execute(() -> {
+            EntityStore entityStore = world.getEntityStore();
+            if (entityStore == null) {
+                return;
+            }
+            
+            Ref<EntityStore> ref = entityStore.getRefFromUUID(entityId);
+            if (ref == null || !ref.isValid()) {
+                LOGGER.debug("Entity {} not found for navigation", entityId);
+                return;
+            }
+            
+            // SDK Pattern: Entity.moveTo(ref, x, y, z, componentAccessor)
+            // moveTo is an instance method on Entity (not on NPCPlugin).
+            // Use the world's entity store as ComponentAccessor for the ECS lookup.
+            try {
+                Entity entity = world.getEntity(entityId);
+                if (entity == null || entity.wasRemoved()) {
+                    LOGGER.debug("Entity {} not found or removed, cannot navigate", entityId);
+                    return;
+                }
+                Store<EntityStore> store = entityStore.getStore();
+                entity.moveTo(ref, target.x(), target.y(), target.z(), store);
+                LOGGER.debug("Entity {} navigating to ({}, {}, {})", 
+                    entityId, target.x(), target.y(), target.z());
+            } catch (Exception e) {
+                LOGGER.warn("Failed to navigate entity {} to target: {}", entityId, e.getMessage(), e);
+            }
+        });
     }
 
     @Override
@@ -507,6 +546,7 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
             
             return true;
         } catch (Exception e) {
+            LOGGER.warn("Failed to mount entity {} on {}: {}", riderId, mountId, e.getMessage(), e);
             return false;
         }
     }
@@ -559,6 +599,7 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
             
             return true;
         } catch (Exception e) {
+            LOGGER.warn("Failed to dismount entity {}: {}", riderId, e.getMessage(), e);
             return false;
         }
     }
@@ -765,8 +806,10 @@ public class HytaleNPCEntityAccessor implements EntityAccessor {
             if (uuidComp != null) {
                 return uuidComp.getUuid();
             }
+            LOGGER.debug("No UUIDComponent found on entity ref: {}", ref);
             return null;
         } catch (Exception e) {
+            LOGGER.debug("Error extracting UUID from entity ref: {}", e.getMessage());
             return null;
         }
     }

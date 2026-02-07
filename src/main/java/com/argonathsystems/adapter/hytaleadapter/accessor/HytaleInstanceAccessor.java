@@ -5,6 +5,12 @@ import com.argonathsystems.framework.accessorapi.data.DataValue;
 import com.argonathsystems.framework.accessorapi.dto.InstanceData;
 import com.argonathsystems.framework.accessorapi.dto.InstanceData.InstanceState;
 import com.argonathsystems.framework.accessorapi.dto.LocationData;
+import com.hypixel.hytale.math.vector.Transform;
+import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.WorldConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,44 +131,41 @@ public class HytaleInstanceAccessor implements InstanceAccessor {
         
         LOGGER.info("Creating instance: type={}, worldName={}", config.instanceType(), worldName);
         
-        // SDK PATTERN: Universe.get().addWorld(worldName, worldgenConfig, seedConfig)
-        //
-        // Implementation when Universe is accessible:
-        // try {
-        //     Universe universe = Universe.get();
-        //     return universe.addWorld(worldName, config.templateWorld(), null)
-        //         .thenApply(world -> {
-        //             InstanceRecord record = new InstanceRecord(
-        //                 instanceId, config.instanceType(), worldName,
-        //                 config.ownerId(), config.maxPlayers(),
-        //                 config.spawnLocation(), config.returnLocation(),
-        //                 config.duration(), config.metadata()
-        //             );
-        //             instances.put(instanceId, record);
-        //             
-        //             LOGGER.info("Instance created successfully: {}", instanceId);
-        //             return Optional.of(record.toInstanceData());
-        //         })
-        //         .exceptionally(ex -> {
-        //             LOGGER.error("Failed to create instance world: {}", worldName, ex);
-        //             return Optional.empty();
-        //         });
-        // } catch (Exception e) {
-        //     LOGGER.error("Failed to access Universe for instance creation", e);
-        //     return CompletableFuture.completedFuture(Optional.empty());
-        // }
-        
-        // Internal tracking (stub until Universe integration)
-        InstanceRecord record = new InstanceRecord(
-            instanceId, config.instanceType(), worldName,
-            config.ownerId(), config.maxPlayers(),
-            config.spawnLocation(), config.returnLocation(),
-            config.duration(), config.metadata()
-        );
-        instances.put(instanceId, record);
-        
-        LOGGER.info("Instance created (tracking only - requires Universe integration): {}", instanceId);
-        return CompletableFuture.completedFuture(Optional.of(record.toInstanceData()));
+        try {
+            Universe universe = Universe.get();
+            
+            // Create world configuration for instance
+            WorldConfig worldConfig = new WorldConfig();
+            
+            // Use Universe.makeWorld() to create a new world for this instance
+            java.nio.file.Path worldPath = java.nio.file.Path.of("worlds", "instances", worldName);
+            
+            return universe.makeWorld(worldName, worldPath, worldConfig)
+                .thenApply(world -> {
+                    if (world == null) {
+                        LOGGER.error("Universe.makeWorld returned null for instance: {}", worldName);
+                        return Optional.<InstanceData>empty();
+                    }
+                    
+                    InstanceRecord record = new InstanceRecord(
+                        instanceId, config.instanceType(), worldName,
+                        config.ownerId(), config.maxPlayers(),
+                        config.spawnLocation(), config.returnLocation(),
+                        config.duration(), config.metadata()
+                    );
+                    instances.put(instanceId, record);
+                    
+                    LOGGER.info("Instance created successfully: id={}, world={}", instanceId, worldName);
+                    return Optional.of(record.toInstanceData());
+                })
+                .exceptionally(ex -> {
+                    LOGGER.error("Failed to create instance world: {}", worldName, ex);
+                    return Optional.empty();
+                });
+        } catch (Exception e) {
+            LOGGER.error("Failed to access Universe for instance creation: {}", worldName, e);
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
     }
     
     @Override
@@ -181,23 +184,18 @@ public class HytaleInstanceAccessor implements InstanceAccessor {
             teleportFromInstance(playerId);
         }
         
-        // SDK PATTERN: Universe.get().removeWorld(worldName)
-        //
-        // try {
-        //     Universe universe = Universe.get();
-        //     boolean removed = universe.removeWorld(record.worldName);
-        //     if (removed) {
-        //         instances.remove(instanceId);
-        //         LOGGER.info("Instance destroyed successfully: {}", instanceId);
-        //     } else {
-        //         LOGGER.warn("Failed to remove instance world: {}", record.worldName);
-        //     }
-        // } catch (Exception e) {
-        //     LOGGER.error("Failed to destroy instance", e);
-        // }
+        // Remove instance world from Universe
+        try {
+            Universe universe = Universe.get();
+            universe.removeWorld(record.worldName);
+            LOGGER.info("Instance world removed from Universe: {}", record.worldName);
+        } catch (Exception e) {
+            LOGGER.error("Failed to remove instance world from Universe: {}", record.worldName, e);
+        }
         
         instances.remove(instanceId);
-        LOGGER.info("Instance destroyed (tracking only): {}", instanceId);
+        record.state = InstanceState.DESTROYED;
+        LOGGER.info("Instance destroyed: id={}, world={}", instanceId, record.worldName);
         
         return CompletableFuture.completedFuture(null);
     }
@@ -252,54 +250,70 @@ public class HytaleInstanceAccessor implements InstanceAccessor {
             return false;
         }
         
-        // SDK PATTERN: Player teleportation between worlds
-        //
-        // try {
-        //     Universe universe = Universe.get();
-        //     World instanceWorld = universe.getWorld(record.worldName);
-        //     if (instanceWorld == null) {
-        //         LOGGER.warn("Instance world not loaded: {}", record.worldName);
-        //         return false;
-        //     }
-        //     
-        //     PlayerRef player = universe.getPlayer(playerId);
-        //     if (player == null) {
-        //         LOGGER.warn("Player not found: {}", playerId);
-        //         return false;
-        //     }
-        //     
-        //     // Save return location before teleporting
-        //     World currentWorld = player.getWorld();
-        //     Transform transform = player.getEntity().getRef().get(TransformComponent.TYPE).getTransform();
-        //     playerReturnLocations.put(playerId, new LocationData(
-        //         currentWorld.getName(), transform.getX(), transform.getY(), transform.getZ()
-        //     ));
-        //     
-        //     // Teleport to instance
-        //     Transform spawnTransform = spawnLocation != null 
-        //         ? Transform.create(spawnLocation.x(), spawnLocation.y(), spawnLocation.z(), 0, 0)
-        //         : instanceWorld.getSpawnTransform();
-        //     
-        //     player.teleport(instanceWorld, spawnTransform);
-        //     
-        //     // Update tracking
-        //     playerToInstance.put(playerId, instanceId);
-        //     record.players.add(playerId);
-        //     
-        //     LOGGER.info("Player {} teleported to instance {}", playerId, instanceId);
-        //     return true;
-        // } catch (Exception e) {
-        //     LOGGER.error("Failed to teleport player to instance", e);
-        //     return false;
-        // }
-        
-        // Internal tracking (stub until Universe integration)
-        playerToInstance.put(playerId, instanceId);
-        record.players.add(playerId);
-        
-        LOGGER.info("Player {} assigned to instance {} (tracking only - requires Universe integration)", 
-            playerId, instanceId);
-        return true;
+        try {
+            Universe universe = Universe.get();
+            
+            // Find the instance world
+            World instanceWorld = null;
+            for (World w : universe.getWorlds().values()) {
+                if (w.getName().equalsIgnoreCase(record.worldName)) {
+                    instanceWorld = w;
+                    break;
+                }
+            }
+            if (instanceWorld == null) {
+                LOGGER.warn("Instance world not loaded: {}", record.worldName);
+                return false;
+            }
+            
+            // Get player reference
+            PlayerRef playerRef = universe.getPlayer(playerId);
+            if (playerRef == null || !playerRef.isValid()) {
+                LOGGER.warn("Player not found or offline: {}", playerId);
+                return false;
+            }
+            
+            // Save return location before teleporting
+            UUID currentWorldUuid = playerRef.getWorldUuid();
+            if (currentWorldUuid != null) {
+                World currentWorld = universe.getWorld(currentWorldUuid);
+                if (currentWorld != null) {
+                    Transform currentTransform = playerRef.getTransform();
+                    if (currentTransform != null) {
+                        var pos = currentTransform.getPosition();
+                        playerReturnLocations.put(playerId, new LocationData(
+                            currentWorld.getName(),
+                            pos.getX(), pos.getY(), pos.getZ(),
+                            0, 0
+                        ));
+                    }
+                }
+            }
+            
+            // Create spawn transform
+            LocationData spawn = spawnLocation != null ? spawnLocation : record.spawnLocation;
+            Vector3f position;
+            if (spawn != null) {
+                position = new Vector3f((float) spawn.x(), (float) spawn.y(), (float) spawn.z());
+            } else {
+                position = new Vector3f(0, 64, 0);
+            }
+            
+            Transform spawnTransform = new Transform(position.x, position.y, position.z);
+            
+            // Teleport player to instance world
+            instanceWorld.addPlayer(playerRef, spawnTransform);
+            
+            // Update tracking
+            playerToInstance.put(playerId, instanceId);
+            record.players.add(playerId);
+            
+            LOGGER.info("Player {} teleported to instance {} (world={})", playerId, instanceId, record.worldName);
+            return true;
+        } catch (Exception e) {
+            LOGGER.error("Failed to teleport player {} to instance {}: {}", playerId, instanceId, e.getMessage(), e);
+            return false;
+        }
     }
     
     @Override
@@ -312,49 +326,65 @@ public class HytaleInstanceAccessor implements InstanceAccessor {
         
         InstanceRecord record = instances.get(instanceId);
         
-        // SDK PATTERN: Return player to saved location
-        //
-        // try {
-        //     Universe universe = Universe.get();
-        //     PlayerRef player = universe.getPlayer(playerId);
-        //     if (player == null) {
-        //         LOGGER.warn("Player not found for return teleport: {}", playerId);
-        //         return false;
-        //     }
-        //     
-        //     LocationData returnLoc = playerReturnLocations.remove(playerId);
-        //     if (returnLoc != null) {
-        //         World returnWorld = universe.getWorld(returnLoc.worldName());
-        //         if (returnWorld != null) {
-        //             Transform returnTransform = Transform.create(
-        //                 returnLoc.x(), returnLoc.y(), returnLoc.z(), 0, 0
-        //             );
-        //             player.teleport(returnWorld, returnTransform);
-        //         } else {
-        //             // Fallback to default world spawn
-        //             World defaultWorld = universe.getDefaultWorld();
-        //             player.teleport(defaultWorld, defaultWorld.getSpawnTransform());
-        //         }
-        //     } else {
-        //         // No saved location, use default world
-        //         World defaultWorld = universe.getDefaultWorld();
-        //         player.teleport(defaultWorld, defaultWorld.getSpawnTransform());
-        //     }
-        //     
-        //     LOGGER.info("Player {} returned from instance {}", playerId, instanceId);
-        // } catch (Exception e) {
-        //     LOGGER.error("Failed to return player from instance", e);
-        //     return false;
-        // }
+        try {
+            Universe universe = Universe.get();
+            PlayerRef playerRef = universe.getPlayer(playerId);
+            
+            if (playerRef != null && playerRef.isValid()) {
+                // Determine return destination
+                LocationData returnLoc = playerReturnLocations.get(playerId);
+                World targetWorld = null;
+                Vector3f targetPosition;
+                
+                if (returnLoc != null) {
+                    // Try to find the saved return world
+                    for (World w : universe.getWorlds().values()) {
+                        if (w.getName().equalsIgnoreCase(returnLoc.world())) {
+                            targetWorld = w;
+                            break;
+                        }
+                    }
+                }
+                
+                if (targetWorld == null) {
+                    // Fallback to default world
+                    targetWorld = universe.getDefaultWorld();
+                }
+                
+                if (targetWorld != null) {
+                    if (returnLoc != null) {
+                        targetPosition = new Vector3f(
+                            (float) returnLoc.x(), (float) returnLoc.y(), (float) returnLoc.z()
+                        );
+                    } else {
+                        targetPosition = new Vector3f(0, 64, 0);
+                    }
+                    
+                    Transform returnTransform = new Transform(
+                        targetPosition.x, targetPosition.y, targetPosition.z
+                    );
+                    targetWorld.addPlayer(playerRef, returnTransform);
+                    LOGGER.info("Player {} returned from instance {} to world {}", 
+                        playerId, instanceId, targetWorld.getName());
+                } else {
+                    LOGGER.warn("No target world available for player {} return from instance {}", 
+                        playerId, instanceId);
+                }
+            } else {
+                LOGGER.debug("Player {} offline during instance return, cleaning up tracking only", playerId);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to teleport player {} from instance {}: {}", 
+                playerId, instanceId, e.getMessage(), e);
+        }
         
-        // Update tracking
+        // Always update tracking regardless of teleport success
         playerToInstance.remove(playerId);
         playerReturnLocations.remove(playerId);
         if (record != null) {
             record.players.remove(playerId);
         }
         
-        LOGGER.info("Player {} removed from instance {} (tracking only)", playerId, instanceId);
         return true;
     }
     

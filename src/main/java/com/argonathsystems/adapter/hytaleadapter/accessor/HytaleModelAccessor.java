@@ -11,6 +11,11 @@ import com.hypixel.hytale.server.core.modules.entity.component.EntityScaleCompon
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.npc.NPCPlugin;
+import com.hypixel.hytale.server.core.universe.world.npc.INonPlayerCharacter;
+import it.unimi.dsi.fastutil.Pair;
+import com.hypixel.hytale.math.vector.Vector3d;
+import com.hypixel.hytale.math.vector.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,19 +79,70 @@ public class HytaleModelAccessor implements ModelAccessor {
     
     @Override
     public UUID spawnModel(String modelId, double x, double y, double z) {
-        // Model spawning requires full entity creation via ECS
-        // This is a complex operation that requires:
-        // 1. Create entity with EntityStore
-        // 2. Add ModelComponent with model ID
-        // 3. Add TransformComponent with position
-        // 4. Execute command buffer
+        // Delegate to NPCPlugin for entity creation, using the model ID as the NPC role.
+        // This creates a visual-only entity — the NPC role determines the model appearance.
+        // The spawned entity can then be animated via playAnimation()/stopAnimation().
         
-        LOGGER.warn("Model spawning not fully implemented. Use NPC framework for model entities.");
-        throw new UnsupportedOperationException(
-            "Model spawning requires ECS entity creation. " +
-            "Use NPCAccessor for spawning entities with models, or implement " +
-            "EntityStore.createEntity() with appropriate components."
-        );
+        NPCPlugin npcPlugin = NPCPlugin.get();
+        if (npcPlugin == null) {
+            LOGGER.error("Cannot spawn model: NPCPlugin not available");
+            throw new UnsupportedOperationException(
+                "Model spawning requires NPCPlugin which is not loaded.");
+        }
+        
+        // Find a world to spawn in — use the default world
+        Universe universe = Universe.get();
+        World defaultWorld = universe.getDefaultWorld();
+        if (defaultWorld == null) {
+            LOGGER.error("Cannot spawn model: no default world available");
+            throw new UnsupportedOperationException(
+                "Model spawning requires a world. No default world found.");
+        }
+        
+        UUID entityUuid = UUID.randomUUID();
+        
+        // Parse modelId as "role" or "role:variant" pattern
+        String role = modelId;
+        String variant = null;
+        if (modelId.contains(":")) {
+            String[] parts = modelId.split(":", 2);
+            role = parts[0];
+            variant = parts[1];
+        }
+        
+        final String npcRole = role;
+        final String npcVariant = variant;
+        
+        defaultWorld.execute(() -> {
+            try {
+                Store<EntityStore> store = defaultWorld.getEntityStore().getStore();
+                Vector3d position = new Vector3d(x, y, z);
+                Vector3f rotation = new Vector3f(0.0f, 0.0f, 0.0f);
+                
+                Pair<Ref<EntityStore>, INonPlayerCharacter> result = 
+                    npcPlugin.spawnNPC(
+                        store, npcRole, npcVariant, position, rotation);
+                
+                if (result != null && result.left() != null && result.left().isValid()) {
+                    Ref<EntityStore> ref = result.left();
+                    
+                    // Cache the entity reference for later animation/removal
+                    EntityReference entityRef = new EntityReference(entityUuid, defaultWorld.getName());
+                    entityRef.entityRef = ref;
+                    entityCache.put(entityUuid, entityRef);
+                    
+                    LOGGER.info("Spawned model entity '{}' at ({}, {}, {}) -> UUID {}", 
+                        modelId, x, y, z, entityUuid);
+                } else {
+                    LOGGER.error("NPCPlugin.spawnNPC returned null or invalid ref for model '{}'", modelId);
+                }
+            } catch (Exception e) {
+                LOGGER.error("Failed to spawn model '{}' at ({}, {}, {}): {}", 
+                    modelId, x, y, z, e.getMessage(), e);
+            }
+        });
+        
+        return entityUuid;
     }
     
     @Override
@@ -97,13 +153,24 @@ public class HytaleModelAccessor implements ModelAccessor {
             return;
         }
         
-        // Remove entity from world
+        // Remove entity from world via ECS
         try {
             World world = getWorld(ref.worldId);
-            if (world != null && ref.entityRef != null) {
-                // Entity removal via ECS
-                // world.getEntityStore().removeEntity(ref.entityRef);
-                LOGGER.debug("STUB: Would remove entity {} from world {}", modelId, ref.worldId);
+            if (world != null) {
+                world.execute(() -> {
+                    try {
+                        Entity entity = world.getEntity(modelId);
+                        if (entity != null) {
+                            entity.remove();
+                            LOGGER.debug("Removed model entity {} from world {}", modelId, ref.worldId);
+                        } else {
+                            LOGGER.debug("Entity {} already removed from world {}", modelId, ref.worldId);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to remove model entity {} in world thread: {}", 
+                            modelId, e.getMessage(), e);
+                    }
+                });
             }
         } catch (Exception e) {
             LOGGER.error("Failed to remove model entity {}: {}", modelId, e.getMessage());

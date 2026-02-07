@@ -140,8 +140,7 @@ public class HotbarInteractionAdapter implements PlayerPacketFilter {
         UUID playerId = playerRef.getUuid();
         boolean shouldBlock = false;
         
-        // INFO level for visibility - critical for debugging slot interception
-        LOGGER.info("[HOTBAR-INTERCEPT] Received SyncInteractionChains from player {}, updates: {}, filter: {}", 
+        LOGGER.debug("[HOTBAR-INTERCEPT] Received SyncInteractionChains from player {}, updates: {}, filter: {}", 
             playerId, 
             syncPacket.updates != null ? syncPacket.updates.length : 0,
             slotSelectionFilter != null ? "present" : "null");
@@ -151,7 +150,7 @@ public class HotbarInteractionAdapter implements PlayerPacketFilter {
         
         // Check each interaction chain
         for (SyncInteractionChain chain : syncPacket.updates) {
-            LOGGER.info("[HOTBAR-INTERCEPT] Processing chain: type={}, activeSlot={}", 
+            LOGGER.debug("[HOTBAR-INTERCEPT] Processing chain: type={}, activeSlot={}", 
                 chain.interactionType, chain.activeHotbarSlot);
             boolean chainBlocked = processChain(playerId, chain);
             if (chainBlocked) {
@@ -172,12 +171,12 @@ public class HotbarInteractionAdapter implements PlayerPacketFilter {
                     resyncSlot, playerId);
                 resyncSlot = 0;
             }
-            LOGGER.info("[HOTBAR-INTERCEPT] Sending SetActiveSlot resync to slot {} for player {}", 
+            LOGGER.debug("[HOTBAR-INTERCEPT] Sending SetActiveSlot resync to slot {} for player {}", 
                 resyncSlot, playerId);
             resyncClientSlot(playerRef, resyncSlot);
         }
         
-        LOGGER.info("[HOTBAR-INTERCEPT] Final decision: shouldBlock={}", shouldBlock);
+        LOGGER.debug("[HOTBAR-INTERCEPT] Final decision: shouldBlock={}", shouldBlock);
         return shouldBlock;
     }
     
@@ -222,28 +221,28 @@ public class HotbarInteractionAdapter implements PlayerPacketFilter {
      */
     private boolean handleSlotSelection(UUID playerId, int slotIndex) {
         BiPredicate<UUID, Integer> filter = slotSelectionFilter;
-        LOGGER.info("[HOTBAR-INTERCEPT] handleSlotSelection: player={}, slot={}, filterRegistered={}", 
+        LOGGER.debug("[HOTBAR-INTERCEPT] handleSlotSelection: player={}, slot={}, filterRegistered={}", 
             playerId, slotIndex, filter != null);
         
         if (filter == null) {
-            LOGGER.info("[HOTBAR-INTERCEPT] No slot filter registered, allowing slot selection");
+            LOGGER.debug("[HOTBAR-INTERCEPT] No slot filter registered, allowing slot selection");
             return false; // No filter registered, allow all
         }
         
         try {
             boolean shouldBlock = filter.test(playerId, slotIndex);
-            LOGGER.info("[HOTBAR-INTERCEPT] Filter result for slot {}: shouldBlock={}", slotIndex, shouldBlock);
+            LOGGER.debug("[HOTBAR-INTERCEPT] Filter result for slot {}: shouldBlock={}", slotIndex, shouldBlock);
             if (shouldBlock) {
-                LOGGER.info("[HOTBAR-INTERCEPT] BLOCKED slot {} selection for player {}", slotIndex, playerId);
+                LOGGER.debug("[HOTBAR-INTERCEPT] BLOCKED slot {} selection for player {}", slotIndex, playerId);
             } else {
                 // Track the new current slot — only store valid hotbar indices (0-8)
                 // Negative values (e.g. -5 from SwapFrom chain.data.targetSlot) are
                 // internal Hytale representations, NOT valid hotbar slots.
                 if (slotIndex >= 0 && slotIndex < 9) {
                     currentSlots.put(playerId, slotIndex);
-                    LOGGER.info("[HOTBAR-INTERCEPT] ALLOWED slot {} selection, tracking new slot", slotIndex);
+                    LOGGER.debug("[HOTBAR-INTERCEPT] ALLOWED slot {} selection, tracking new slot", slotIndex);
                 } else {
-                    LOGGER.info("[HOTBAR-INTERCEPT] ALLOWED slot {} selection (not tracked — out of valid range 0-8)", slotIndex);
+                    LOGGER.debug("[HOTBAR-INTERCEPT] ALLOWED slot {} selection (not tracked — out of valid range 0-8)", slotIndex);
                 }
             }
             return shouldBlock;

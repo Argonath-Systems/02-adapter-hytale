@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Build Validation & SDK Correction (2026-02-07)
+
+- **HytaleNPCEntityAccessor**: `NPCPlugin.get().moveTo()` does not exist — `moveTo()` is an instance method on `Entity`, not on `NPCPlugin`
+  - Fix: Retrieve entity via `world.getEntity(entityId)` then call `entity.moveTo(ref, x, y, z, store)`
+  - SDK reference: `com.hypixel.hytale.server.core.entity.Entity.moveTo(Ref, double, double, double, ComponentAccessor)`
+
+- **HytaleModelAccessor**: Wrong vector imports — `org.joml.Vector3d/Vector3f` → `com.hypixel.hytale.math.vector.Vector3d/Vector3f`
+  - Also fixed `NPCPlugin.spawnNPC()` return type: `NPCEntity` → `INonPlayerCharacter` (matching actual SDK signature)
+
+- **HytaleCameraAccessor**: `HyUIHud.close()` does not exist — changed to `hud.remove()` (removes HUD from screen for player)
+
+- **HytaleMultiWorldAccessor**: `ISpawnProvider.getSpawnPosition()` does not exist — changed to `getSpawnPoints()[0].getPosition()` (2 locations)
+
+- **HytaleModelAnimationAccessor**: Record constructor mismatches
+  - `AnimationInfo`: was passing 4 args, needs 7 (animationId, soundEventId, speed, blendingDuration, looping, weight, footstepIntervals)
+  - `AnimationSetInfo`: was passing 2 args, needs 4 (name, animations, nextAnimationDelayMin, nextAnimationDelayMax)
+  - `AnimationSoundPair`: was passing `(anim, soundEventId)` where `anim` is `AnimationInfo` — fixed to `(anim.animationId(), anim.soundEventId())`
+
+- **NPCAnimationApiController**: `req.getHeader("X-Player-UUID")` returns `Optional<String>` — added `.orElse(null)`
+
+- **QuestFormatConverter**: Extensive API mismatch fixes (15+ errors)
+  - `QuestCategory` standalone enum deleted; inner enum `QuestDefinition.QuestCategory` used instead
+  - `GraphNode.setType(String)` → `GraphNode.setType(TypeEnum)` for all node type assignments
+  - `GraphNode.setData(Map.of(...))` → `GraphNode.setData(new GraphNodeData().label(...).config(...))`
+  - `QuestObjective` class replaced with `QuestObjectiveReference` (setTarget→config map, setAmount→setCount)
+  - `setRewardId()` → `setId()` on `QuestReward`
+  - `hyQuest.setTitle()` → `metadata.setTitle()` (title is on QuestMetadata, not QuestDefinition)
+  - `metadata.setNpcId()`/`getNpcId()` removed (field doesn't exist on QuestMetadata)
+  - `getQuestGiverId()` → `getQuestGiverNpcId()`
+  - `getRewards()` → `getRewardsList()` (returns `List<QuestReward>` vs `QuestRewardConfig`)
+  - `setStageNumber()` → `setId()`, `getName()` → `getTitle()` on QuestStage
+  - `extractNodeData()` rewritten to handle `GraphNodeData` object (not a Map)
+  - `extractNodeType()` uses `typeEnum.getValue()` (camelCase) not `.name()` (UPPER_CASE)
+  - Added `Logger`/`LoggerFactory` imports and `LOGGER` field (was referenced but never defined)
+
+- **HytaleRenderAccessor**: Replaced 9 method-level TODO comments with SDK limitation notes
+  - All methods documented as "SDK LIMITATION: Server-side SDK has no render/preview API"
+
+### Discovered - Camera SDK API Available (2026-02-07)
+
+- **CRITICAL FINDING**: Camera control was previously marked as ❌ BLOCKED in the implementation plan
+- Investigation of `ServerCameraSettings` class and [hytalemodding.dev camera guide](https://hytalemodding.dev/en/docs/guides/plugin/customizing-camera-controls) reveals **extensive camera control IS available**
+- SDK provides: `ServerCameraSettings` (30+ fields) + `SetServerCamera` packet sent via `playerRef.getPacketHandler().writeNoCache()`
+- **Now implementable**: camera rotation, distance/zoom, position, offset, force perspective, lock, smooth follow, wall clip prevention, cursor display, movement alignment
+- **Still blocked**: FOV control, depth of field (no fields in ServerCameraSettings for these)
+- Camera items CAM-001/002/005/006 reclassified from BLOCKED → IMPLEMENTABLE
+- Implementation plan updated with new status and SDK patterns
+
+### Added - Camera SDK Integration (2026-02-07)
+
+- **`HytaleCameraAccessor` rewritten** from stub implementation to full SDK-powered camera control
+- **CAM-001 Camera Position**: `setCameraPosition()` now sends `SetServerCamera` packet with `PositionType.Custom` and absolute `Position` coordinates
+- **CAM-002 Camera Rotation**: `setCameraRotation()` now sends `SetServerCamera` packet with `RotationType.Custom`, `ApplyLookType.Rotation`, and `Direction` (degrees→radians conversion)
+- **CAM-003 Letterbox**: Already implemented via HyUI overlay (no change)
+- **CAM-004 Camera Shake**: Already implemented via `CameraShakeEffect` packet (no change)
+- **CAM-005 Force Perspective**: New `forcePerspective()` method sends `SetServerCamera(ClientCameraView.FirstPerson/ThirdPerson, locked, null)`
+- **CAM-006 Cinematic Mode**: `enableCinematicMode()` now composes: custom rotation + `CINEMATIC_CAMERA_DISTANCE` + `isLocked=true` + letterbox overlay; `disableCinematicMode()` resets via `SetServerCamera(Custom, false, null)` and restores saved state
+- **New methods**: `setCameraDistance()`, `forcePerspective()`, `setCameraLocked()`, `resetCamera()` — extend beyond the CameraAccessor interface for adapter-level control
+- **Wall clip prevention**: All camera settings use `PositionDistanceOffsetType.DistanceOffsetRaycast` to prevent camera clipping through walls
+- **Smooth follow**: All camera settings apply `positionLerpSpeed` and `rotationLerpSpeed` defaults for smooth transitions
+- **Unit conversion**: Framework `Vector2(pitch, yaw)` in degrees → SDK `Direction(yaw, pitch, roll)` in radians via `degreesToDirection()` helper
+- **State management**: Enhanced `InternalCameraState` with `distance`, `cameraLocked`, `forcedFirstPerson`, `savedDistance` fields
+
 ### Fixed - Multi-Hotbar Packet Desync (2026-02-06)
 
 - **HotbarInteractionAdapter**: Added `SetActiveSlot` resync after blocking `SyncInteractionChains` packets

@@ -133,12 +133,12 @@ public class HytaleStorageAccessor implements StorageAccessor {
     
     @Override
     public Optional<Integer> getInt(String namespace, String key) {
-        return getString(namespace, key).map(s -> {
+        return getString(namespace, key).flatMap(s -> {
             try {
-                return Integer.parseInt(s);
+                return Optional.of(Integer.parseInt(s));
             } catch (NumberFormatException e) {
                 LOGGER.warn("Invalid integer value for {}:{}: {}", namespace, key, s);
-                return null;
+                return Optional.empty();
             }
         });
     }
@@ -152,12 +152,12 @@ public class HytaleStorageAccessor implements StorageAccessor {
     
     @Override
     public Optional<Long> getLong(String namespace, String key) {
-        return getString(namespace, key).map(s -> {
+        return getString(namespace, key).flatMap(s -> {
             try {
-                return Long.parseLong(s);
+                return Optional.of(Long.parseLong(s));
             } catch (NumberFormatException e) {
                 LOGGER.warn("Invalid long value for {}:{}: {}", namespace, key, s);
-                return null;
+                return Optional.empty();
             }
         });
     }

@@ -1,5 +1,6 @@
 package com.argonathsystems.adapter.hytale.webserver;
 
+import com.argonathsystems.adapter.hytale.permission.PermissionProvider;
 import com.argonathsystems.framework.accessorapi.ModelAnimationAccessor;
 import com.argonathsystems.framework.accessorapi.ModelAnimationAccessor.AnimationSetInfo;
 import com.argonathsystems.framework.accessorapi.ModelAnimationAccessor.AnimationInfo;
@@ -291,9 +292,22 @@ public class NPCAnimationApiController {
     // ========================================================================
     
     private boolean checkPermission(HttpRequest req, String permission) {
-        // TODO: Integrate with actual permission system
-        // For now, allow all requests (development mode)
-        return true;
+        // Extract player UUID from request header or session
+        String playerIdHeader = req.getHeader("X-Player-UUID").orElse(null);
+        if (playerIdHeader == null || playerIdHeader.isBlank()) {
+            // No player context in request — allow for development/tool access
+            // In production, this should return false for authenticated endpoints
+            LOGGER.log(Level.FINE, "No X-Player-UUID header in request, allowing for tool access");
+            return true;
+        }
+        
+        try {
+            UUID playerId = UUID.fromString(playerIdHeader);
+            return PermissionProvider.getInstance().hasPermission(playerId, permission);
+        } catch (IllegalArgumentException e) {
+            LOGGER.log(Level.WARNING, "Invalid player UUID in request header: {0}", playerIdHeader);
+            return false;
+        }
     }
     
     private String getTriggerDescription(AnimationTrigger trigger) {

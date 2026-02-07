@@ -17,6 +17,8 @@ import com.hypixel.hytale.server.core.universe.world.WorldConfig;
 import com.hypixel.hytale.server.core.universe.world.worldgen.provider.DummyWorldGenProvider;
 import com.hypixel.hytale.server.core.universe.world.worldgen.provider.FlatWorldGenProvider;
 import com.hypixel.hytale.server.core.universe.world.worldgen.provider.IWorldGenProvider;
+import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
+import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -280,14 +282,33 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     public Optional<LocationData> getSpawnLocation(String worldName) {
         return findWorld(worldName)
             .map(world -> {
-                // Get spawn location from world config if set
                 WorldConfig config = world.getWorldConfig();
-                // WorldConfig doesn't expose spawn directly, use (0,64,0) as default
-                // In actual implementation, spawn would be stored in world metadata
+                if (config != null) {
+                    // Use SDK SpawnProvider to get spawn position
+                    ISpawnProvider spawnProvider = config.getSpawnProvider();
+                    if (spawnProvider != null) {
+                        try {
+                            // ISpawnProvider.getSpawnPoints() → Transform[]
+                            var spawnPoints = spawnProvider.getSpawnPoints();
+                            if (spawnPoints != null && spawnPoints.length > 0) {
+                                var spawnPos = spawnPoints[0].getPosition();
+                                return new LocationData(
+                                    worldName,
+                                    spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(),
+                                    0.0f, 0.0f
+                                );
+                            }
+                        } catch (Exception e) {
+                            LOGGER.debug("SpawnProvider.getSpawnPoints() failed for world {}: {}",
+                                worldName, e.getMessage());
+                        }
+                    }
+                }
+                // Default fallback - center of world at Y=64
                 return new LocationData(
                     worldName,
-                    0.0, 64.0, 0.0,  // Default spawn at world center, sea level
-                    0.0f, 0.0f       // Default yaw/pitch
+                    0.0, 64.0, 0.0,
+                    0.0f, 0.0f
                 );
             });
     }
@@ -590,14 +611,57 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     
     /**
      * Apply world rules from config to WorldConfig.
+     * 
+     * <p>Maps string rule names from createConfig to SDK WorldConfig setters.
+     * Supported rules: pvp_enabled, npc_spawning, npc_frozen, time_paused, 
+     * block_ticking, compass_updating.
+     * 
+     * @param worldConfig the SDK WorldConfig to modify
+     * @param createConfig the framework create config with rules map
      */
     private void applyWorldRules(WorldConfig worldConfig, WorldCreateConfig createConfig) {
         // Apply common defaults
         worldConfig.setPvpEnabled(false);
-        // Note: Fall damage cannot be configured via SDK - isFallDamageEnabled is read-only
-        // Fall damage settings may be controlled via world template or gameplay config
         
-        // TODO: Apply rules from createConfig.rules() map
+        // Apply rules from createConfig.rules() map
+        Map<String, Object> rules = createConfig.rules();
+        if (rules == null || rules.isEmpty()) {
+            return;
+        }
+        
+        for (Map.Entry<String, Object> entry : rules.entrySet()) {
+            String rule = entry.getKey();
+            Object value = entry.getValue();
+            
+            try {
+                switch (rule.toLowerCase()) {
+                    case "pvp_enabled", "pvp" -> {
+                        if (value instanceof Boolean b) worldConfig.setPvpEnabled(b);
+                    }
+                    case "mob_spawning", "npc_spawning" -> {
+                        if (value instanceof Boolean b) worldConfig.setSpawningNPC(b);
+                    }
+                    case "npc_frozen", "freeze_npc" -> {
+                        if (value instanceof Boolean b) worldConfig.setIsAllNPCFrozen(b);
+                    }
+                    case "time_paused", "game_time_paused" -> {
+                        if (value instanceof Boolean b) worldConfig.setGameTimePaused(b);
+                    }
+                    case "block_ticking" -> {
+                        if (value instanceof Boolean b) worldConfig.setBlockTicking(b);
+                    }
+                    case "compass_updating" -> {
+                        if (value instanceof Boolean b) worldConfig.setCompassUpdating(b);
+                    }
+                    // Note: Fall damage cannot be configured via SDK - isFallDamageEnabled is read-only
+                    case "fall_damage_enabled", "fall_damage" -> 
+                        LOGGER.debug("Fall damage setting not configurable via SDK");
+                    default -> LOGGER.debug("Unknown world rule: {} (ignored)", rule);
+                }
+            } catch (ClassCastException e) {
+                LOGGER.warn("Invalid value type for world rule {}: {}", rule, value);
+            }
+        }
     }
     
     /**
@@ -628,23 +692,26 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     /**
      * Count players in a world.
      * 
-     * SDK Pattern: Iterate through Universe.getPlayers() and filter by world
+     * SDK Pattern: World.getPlayerRefs() returns the collection of PlayerRefs in that world.
+     * 
+     * @param world the world to count players in
+     * @return number of valid players in the world
      */
     private int countPlayers(World world) {
         if (world == null) {
             return 0;
         }
         try {
-            // Universe.get().getPlayers() returns all connected players
-            // Filter by checking each player's current world
-            int count = 0;
-            // Note: Actual implementation would be:
-            // for (PlayerRef player : Universe.get().getPlayers()) {
-            //     if (player.getWorld().equals(world)) count++;
-            // }
-            // For now, return 0 as player iteration API needs verification
-            return count;
+            // World.getPlayerRefs() returns players currently in this specific world
+            Collection<PlayerRef> playerRefs = world.getPlayerRefs();
+            if (playerRefs == null) {
+                return 0;
+            }
+            return (int) playerRefs.stream()
+                .filter(PlayerRef::isValid)
+                .count();
         } catch (Exception e) {
+            LOGGER.debug("Error counting players in world {}: {}", world.getName(), e.getMessage());
             return 0;
         }
     }
@@ -652,7 +719,11 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
     /**
      * Get world spawn location.
      * 
-     * SDK Pattern: WorldConfig contains spawn provider/position
+     * SDK Pattern: WorldConfig.getSpawnProvider() → ISpawnProvider.getSpawnPosition() → Vector3d
+     * Fallback: (0, 64, 0) if SpawnProvider unavailable or returns null.
+     * 
+     * @param world the world to get spawn for
+     * @return spawn location, never null
      */
     private LocationData getWorldSpawn(World world) {
         if (world == null) {
@@ -661,14 +732,25 @@ public class HytaleMultiWorldAccessor implements MultiWorldAccessor {
         try {
             WorldConfig config = world.getWorldConfig();
             if (config != null) {
-                // SDK provides spawn via WorldConfig
-                // SpawnProvider spawnProvider = config.getSpawnProvider();
-                // Vector3d spawnPos = spawnProvider.getSpawnPosition(world);
-                // return new LocationData(world.getName(), spawnPos.x, spawnPos.y, spawnPos.z, 0, 0);
+                ISpawnProvider spawnProvider = config.getSpawnProvider();
+                if (spawnProvider != null) {
+                    // ISpawnProvider.getSpawnPoints() → Transform[] 
+                    var spawnPoints = spawnProvider.getSpawnPoints();
+                    if (spawnPoints != null && spawnPoints.length > 0) {
+                        var spawnTransform = spawnPoints[0];
+                        var spawnPos = spawnTransform.getPosition();
+                        return new LocationData(
+                            world.getName(),
+                            spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(),
+                            0, 0
+                        );
+                    }
+                }
             }
             // Default fallback - center of world at Y=64
             return new LocationData(world.getName(), 0, 64, 0, 0, 0);
         } catch (Exception e) {
+            LOGGER.debug("Error getting spawn for world {}: {}", world.getName(), e.getMessage());
             return new LocationData(world.getName(), 0, 64, 0, 0, 0);
         }
     }

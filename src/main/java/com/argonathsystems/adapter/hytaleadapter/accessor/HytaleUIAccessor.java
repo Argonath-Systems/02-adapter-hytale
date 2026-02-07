@@ -749,6 +749,67 @@ public class HytaleUIAccessor implements UIAccessor {
     }
     
     @Override
+    public void openPageWithEvents(UUID playerId, String pageId, String content, UIContext context, List<UIEventBinding> eventBindings) {
+        PlayerRef playerRef = getPlayerRef(playerId);
+        if (playerRef == null) {
+            LOGGER.warn("Cannot open page {}: player {} not found", pageId, playerId);
+            return;
+        }
+        
+        UUID worldUuid = playerRef.getWorldUuid();
+        if (worldUuid == null) {
+            LOGGER.warn("Cannot open page {}: player {} has no world UUID", pageId, playerId);
+            return;
+        }
+        
+        World world = Universe.get().getWorld(worldUuid);
+        if (world == null) {
+            LOGGER.warn("Cannot open page {}: world {} not found for player {}", pageId, worldUuid, playerId);
+            return;
+        }
+        
+        // Process template before scheduling (can be done on any thread)
+        String processedHtml = wrapAsPage(content, context);
+        
+        // Schedule on world thread using World as Executor
+        CompletableFuture.runAsync(() -> {
+            try {
+                Store<EntityStore> store = getPlayerStore(playerRef);
+                if (store == null) {
+                    LOGGER.warn("Cannot open page {}: player {} has no store context (on world thread)", pageId, playerId);
+                    return;
+                }
+                
+                // Build page with inline content AND event bindings in a single builder call
+                PageBuilder builder = PageBuilder.pageForPlayer(playerRef)
+                    .fromHtml(processedHtml);
+                
+                // Attach event listeners to the same builder instance
+                if (eventBindings != null) {
+                    for (UIEventBinding binding : eventBindings) {
+                        CustomUIEventBindingType hyuiEventType = mapEventType(binding.eventType());
+                        
+                        builder.addEventListener(binding.elementId(), hyuiEventType, (data, ctx) -> {
+                            UIEventBinding.UIEventContext eventContext = new HyUIEventContext(ctx, playerId);
+                            binding.handler().accept(playerId, eventContext);
+                        });
+                        LOGGER.trace("Registered page event listener: {} -> {}", binding.elementId(), binding.eventType());
+                    }
+                }
+                
+                HyUIPage page = builder.open(store);
+                
+                activePages.put(buildKey(playerId, pageId), page);
+                LOGGER.debug("Opened page {} with {} event bindings for player {}", 
+                    pageId, eventBindings != null ? eventBindings.size() : 0, playerId);
+                
+            } catch (Exception e) {
+                LOGGER.error("Failed to open page {} for player {}", pageId, playerId, e);
+            }
+        }, world);
+    }
+
+    @Override
     public void closePage(UUID playerId, String pageId) {
         String key = buildKey(playerId, pageId);
         HyUIPage page = activePages.remove(key);
@@ -833,6 +894,8 @@ public class HytaleUIAccessor implements UIAccessor {
                 return entityStore.getStore();
             }
         }
+        LOGGER.warn("Could not resolve EntityStore for player {} (worldUuid={}, defaultWorld={})",
+            playerRef.getUuid(), worldUuid, defaultWorld);
         return null;
     }
     

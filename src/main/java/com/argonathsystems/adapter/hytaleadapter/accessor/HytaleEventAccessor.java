@@ -251,9 +251,14 @@ public class HytaleEventAccessor implements EventAccessor {
         }
         
         @Override
+        @SuppressWarnings("unchecked")
         public Class<? extends AccessorEvent> getEventType() {
-            // Native events don't implement AccessorEvent
-            return null;
+            // Native SDK events don't implement AccessorEvent.
+            // Return the SDK event class cast as a best-effort — callers should
+            // check instanceof before using. This avoids returning null which
+            // violates the contract and can cause NPEs downstream.
+            // See: IMPL-ADAPTER-PLAN-001, NULL-001
+            return (Class<? extends AccessorEvent>) sdkEventType;
         }
         
         @Override

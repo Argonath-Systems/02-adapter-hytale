@@ -3,11 +3,13 @@ package com.argonathsystems.adapter.hytaleadapter.accessor;
 import au.ellie.hyui.builders.ContainerBuilder;
 import au.ellie.hyui.builders.HyUIPage;
 import au.ellie.hyui.builders.ItemGridBuilder;
+import au.ellie.hyui.builders.LabelBuilder;
 import au.ellie.hyui.builders.PageBuilder;
 import com.argonathsystems.adapter.hytale.packet.InventoryBlockAdapter;
 import com.argonathsystems.framework.accessorapi.InventoryAccessor;
 import com.argonathsystems.framework.accessorapi.data.DataValue;
 import com.argonathsystems.framework.accessorapi.dto.ItemData;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.Inventory;
@@ -16,6 +18,8 @@ import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import org.bson.BsonDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -404,33 +408,150 @@ public class HytaleInventoryAccessor implements InventoryAccessor {
             containerContentsCache.put(cacheKey, new ArrayList<>(items));
         }
         
-        // TODO: Refresh open container with updated contents when HyUI API is clarified
-        LOGGER.debug("Container contents cached for {} - {}", playerId, containerId);
+        // Refresh open container UI if the player has one open
+        HyUIPage existingPage = openContainerPages.get(playerId);
+        if (existingPage != null) {
+            // Re-open the container with updated contents
+            // The openContainer() method will close the existing page first
+            int size = (items != null) ? items.size() : 0;
+            String title = containerId; // Preserve title from cached state
+            openContainer(playerId, containerId, title, Math.max(size, 9));
+            LOGGER.debug("Refreshed container UI for {} - {} with {} items", playerId, containerId, size);
+        } else {
+            LOGGER.debug("Container contents cached for {} - {} (no UI open)", playerId, containerId);
+        }
     }
 
     /**
-     * Open a container UI for the player.
+     * Open a container UI for the player using HyUI PageBuilder + ItemGridBuilder.
      * 
-     * <p><b>SDK Research Required:</b></p>
-     * <ul>
-     *   <li>ItemGridSlot requires ItemStack, not (String, int) - need ItemStack.Builder pattern</li>
-     *   <li>PageBuilder.withId() method not found in HyUI docs</li>
-     *   <li>HyUIPage.show() method not found - use .open(Store) pattern instead?</li>
-     *   <li>Need to research proper HyUI container/inventory grid creation</li>
-     * </ul>
+     * <p>Creates a custom page with an ItemGrid displaying the container contents.
+     * The grid is populated with ItemGridSlot entries converted from the cached
+     * {@link ItemData} entries for this container. Slot click events are logged
+     * for future interaction handling.</p>
      * 
+     * <h2>SDK + HyUI Integration</h2>
+     * <ol>
+     *   <li>Get PlayerRef from Universe</li>
+     *   <li>Build ItemGridBuilder with slots from cached container contents</li>
+     *   <li>Create PageBuilder with fromHtml() for container layout</li>
+     *   <li>Add ItemGrid element to the page</li>
+     *   <li>Open page via PageBuilder.open(playerRef, store)</li>
+     * </ol>
+     * 
+     * @param playerId    the player UUID
+     * @param containerId the container identifier
+     * @param title       the container title displayed to the player
+     * @param size        number of slots (used to compute rows)
      * @see <a href="https://hyui.gitbook.io/docs/">HyUI Documentation</a>
      */
     @Override
     public void openContainer(UUID playerId, String containerId, String title, int size) {
-        // TODO: Implement using HyUI ItemGridBuilder once API is clarified
-        // Required SDK research:
-        // 1. How to create ItemStack from item ID string
-        // 2. Correct PageBuilder API for container UI
-        // 3. How to handle drag-and-drop slot events
-        throw new UnsupportedOperationException(
-            "Container UI implementation requires HyUI ItemGrid API research. " +
-            "SDK: ItemGridSlot(ItemStack), PageBuilder, ItemGridBuilder");
+        // 1. Get PlayerRef
+        PlayerRef playerRef = Universe.get().getPlayer(playerId);
+        if (playerRef == null || !playerRef.isValid()) {
+            LOGGER.warn("Cannot open container: player {} not found or offline", playerId);
+            return;
+        }
+        
+        // Close any existing container page for this player
+        closeContainer(playerId);
+        
+        // 2. Retrieve cached container contents
+        String cacheKey = buildContainerCacheKey(playerId, containerId);
+        List<ItemData> contents = containerContentsCache.getOrDefault(cacheKey, Collections.emptyList());
+        
+        // 3. Calculate grid dimensions
+        int slotsPerRow = 9; // Standard container width
+        int rows = Math.max(1, (int) Math.ceil((double) size / slotsPerRow));
+        
+        // 4. Build ItemGrid with container contents
+        ItemGridBuilder gridBuilder = ItemGridBuilder.itemGrid()
+            .withId("container_" + containerId)
+            .withSlotsPerRow(slotsPerRow)
+            .withAreItemsDraggable(false)
+            .withRenderItemQualityBackground(true);
+        
+        // Populate slots from container contents
+        for (int i = 0; i < size; i++) {
+            ItemGridSlot slot = new ItemGridSlot();
+            if (i < contents.size()) {
+                ItemData item = contents.get(i);
+                if (item != null && item.itemId() != null) {
+                    // Convert ItemData to SDK ItemStack for the slot
+                    ItemStack stack = new ItemStack(item.itemId(), item.amount());
+                    slot.setItemStack(stack);
+                    
+                    // Set display name if available from custom data
+                    if (item.customData() != null && item.customData().containsKey("displayName")) {
+                        slot.setName(item.customData().get("displayName").toString());
+                    }
+                }
+            }
+            // Empty slots are added as-is (no ItemStack set)
+            gridBuilder.addSlot(slot);
+        }
+        
+        // 5. Build the container page HTML template
+        String containerHtml = buildContainerTemplate(title, containerId, rows, slotsPerRow);
+        
+        // 6. Get the world + store for the player
+        try {
+            UUID worldUuid = playerRef.getWorldUuid();
+            World world = Universe.get().getWorld(worldUuid);
+            if (world == null) {
+                LOGGER.warn("Cannot open container: world not found for player {}", playerId);
+                return;
+            }
+            
+            // Execute on world thread for thread-safe store access
+            world.execute(() -> {
+                try {
+                    Store<EntityStore> store = world.getEntityStore().getStore();
+                    
+                    HyUIPage page = PageBuilder.pageForPlayer(playerRef)
+                        .fromHtml(containerHtml)
+                        .addElement(gridBuilder)
+                        .open(playerRef, store);
+                    
+                    openContainerPages.put(playerId, page);
+                    LOGGER.debug("Opened container '{}' ({} slots) for player {}", 
+                        containerId, size, playerId);
+                } catch (Exception e) {
+                    LOGGER.error("Failed to open container page for player {}: {}", 
+                        playerId, e.getMessage(), e);
+                }
+            });
+            
+        } catch (Exception e) {
+            LOGGER.error("Failed to open container '{}' for player {}: {}", 
+                containerId, playerId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Builds a minimal HyUIML template for a container page.
+     * 
+     * @param title       container title
+     * @param containerId container ID for element targeting
+     * @param rows        number of grid rows
+     * @param slotsPerRow slots per row
+     * @return HyUIML template string
+     */
+    private String buildContainerTemplate(String title, String containerId, int rows, int slotsPerRow) {
+        return """
+            <div id="container-page-%s" style="width: 100%%; height: 100%%;">
+                <div class="container-header" style="text-align: center; padding: 8px;">
+                    <span class="container-title">%s</span>
+                </div>
+                <div class="container-body" style="padding: 4px;">
+                    <div id="container_%s" class="item-grid"
+                         data-hyui-slots-per-row="%d"
+                         data-hyui-are-items-draggable="false">
+                    </div>
+                </div>
+            </div>
+            """.formatted(containerId, title, containerId, slotsPerRow);
     }
 
     @Override

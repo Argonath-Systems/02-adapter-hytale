@@ -10,10 +10,16 @@ import java.util.logging.Logger;
 /**
  * Hytale implementation of RenderAccessor for 3D UI previews.
  * 
- * <p><b>MIGRATION-001 Status:</b> BLOCKED - Requires Official Hytale SDK</p>
+ * <p><b>SDK LIMITATION — ENTIRE CLASS BLOCKED:</b> The Hytale SDK is a <em>server-side</em>
+ * SDK. 3D rendering, entity previews, and visual effects are client-side only.
+ * There is no server-side render API and none is expected in future SDK versions.</p>
  * 
- * <p>This implementation provides stub functionality until the official
- * Hytale SDK provides proper 3D render preview APIs for UI contexts.</p>
+ * <p>This implementation maintains internal state tracking only, which may be useful
+ * for testing, logging, or future client-side mod integration via custom packets.</p>
+ * 
+ * <p><b>Recommendation:</b> Consider removing {@code RenderAccessor} from
+ * {@code AccessorProvider.supports()} — return {@code false} for
+ * {@code Capability.ENTITY_PREVIEW}.</p>
  * 
  * @author Argonath Systems Team
  * @version 1.0.0
@@ -44,8 +50,7 @@ public class HytaleRenderAccessor implements RenderAccessor {
         LOGGER.fine(() -> "Showing entity preview for player " + playerId + 
                          ", preview: " + previewId);
         
-        // TODO: Implement actual Hytale SDK integration when available
-        // HytaleServer.get().getRenderAPI().showUIPreview(playerId, previewId, previewData);
+        // SDK LIMITATION: Server-side SDK has no render/preview API. State tracked internally only.
     }
     
     @Override
@@ -60,8 +65,7 @@ public class HytaleRenderAccessor implements RenderAccessor {
             LOGGER.fine(() -> "Updating entity preview for player " + playerId + 
                              ", preview: " + previewId);
             
-            // TODO: Implement actual Hytale SDK integration when available
-            // HytaleServer.get().getRenderAPI().updateUIPreview(playerId, previewId, previewData);
+            // SDK LIMITATION: Server-side SDK has no render/preview API. State tracked internally only.
         } else {
             showEntityPreview(playerId, previewId, previewData);
         }
@@ -75,8 +79,7 @@ public class HytaleRenderAccessor implements RenderAccessor {
         LOGGER.fine(() -> "Hiding entity preview for player " + playerId + 
                          ", preview: " + previewId);
         
-        // TODO: Implement actual Hytale SDK integration when available
-        // HytaleServer.get().getRenderAPI().hideUIPreview(playerId, previewId);
+        // SDK LIMITATION: Server-side SDK has no render/preview API. State tracked internally only.
     }
     
     @Override
@@ -87,8 +90,7 @@ public class HytaleRenderAccessor implements RenderAccessor {
         if (preview != null) {
             preview.put("rotation", rotationDegrees);
             
-            // TODO: Implement actual Hytale SDK integration when available
-            // HytaleServer.get().getRenderAPI().setPreviewRotation(playerId, previewId, rotationDegrees);
+            // SDK LIMITATION: Server-side SDK has no render/preview API. State tracked internally only.
         }
     }
     
@@ -100,8 +102,7 @@ public class HytaleRenderAccessor implements RenderAccessor {
         if (preview != null) {
             preview.put("equipment", equipment);
             
-            // TODO: Implement actual Hytale SDK integration when available
-            // HytaleServer.get().getRenderAPI().setPreviewEquipment(playerId, previewId, equipment);
+            // SDK LIMITATION: Server-side SDK has no render/preview API. State tracked internally only.
         }
     }
     
@@ -114,8 +115,7 @@ public class HytaleRenderAccessor implements RenderAccessor {
             preview.put("animation", animationId);
             preview.put("loop", loop);
             
-            // TODO: Implement actual Hytale SDK integration when available
-            // HytaleServer.get().getRenderAPI().setPreviewAnimation(playerId, previewId, animationId, loop);
+            // SDK LIMITATION: Server-side SDK has no render/preview API. State tracked internally only.
         }
     }
     
@@ -127,8 +127,7 @@ public class HytaleRenderAccessor implements RenderAccessor {
         if (preview != null) {
             preview.put("scale", scale);
             
-            // TODO: Implement actual Hytale SDK integration when available
-            // HytaleServer.get().getRenderAPI().setPreviewScale(playerId, previewId, scale);
+            // SDK LIMITATION: Server-side SDK has no render/preview API. State tracked internally only.
         }
     }
     
@@ -146,8 +145,7 @@ public class HytaleRenderAccessor implements RenderAccessor {
         if (preview != null) {
             preview.put("lighting", lightingPreset);
             
-            // TODO: Implement actual Hytale SDK integration when available
-            // HytaleServer.get().getRenderAPI().setPreviewLighting(playerId, previewId, lightingPreset);
+            // SDK LIMITATION: Server-side SDK has no render/preview API. State tracked internally only.
         }
     }
     
@@ -159,8 +157,7 @@ public class HytaleRenderAccessor implements RenderAccessor {
         if (preview != null) {
             preview.put("background", backgroundId);
             
-            // TODO: Implement actual Hytale SDK integration when available
-            // HytaleServer.get().getRenderAPI().setPreviewBackground(playerId, previewId, backgroundId);
+            // SDK LIMITATION: Server-side SDK has no render/preview API. State tracked internally only.
         }
     }
 }

@@ -74,7 +74,7 @@ public class ItemDataConverter {
             );
             
         } catch (Exception e) {
-            LOGGER.warn("Failed to convert ItemStack to DTO: {}", e.getMessage());
+            LOGGER.warn("Failed to convert ItemStack to DTO: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -114,8 +114,8 @@ public class ItemDataConverter {
             return stack;
             
         } catch (Exception e) {
-            LOGGER.warn("Failed to convert DTO to ItemStack: {}", e.getMessage());
-            return null;
+            LOGGER.warn("Failed to convert DTO to ItemStack: {}", e.getMessage(), e);
+            return ItemStack.EMPTY;
         }
     }
     

@@ -1,10 +1,118 @@
 # Hytale Adapter - Implementation Tracking
 
 > **Module**: `02-adapter-hytale`  
-> **Status**: ✅ BUILD SUCCESS - Real Hytale API Aligned  
-> **Last Updated**: 2026-02-05  
-> **Version**: 4.0.0-ECS-PERSISTENCE-BRIDGE  
-> **Audit Date**: 2026-02-05
+> **Status**: ✅ BUILD SUCCESS - All Phases Complete  
+> **Last Updated**: 2026-02-07  
+> **Version**: 5.0.0-ADAPTER-PLAN-COMPLETE  
+> **Audit Date**: 2026-02-07
+
+---
+
+## 🔵 Adapter Layer Implementation Plan — Complete (2026-02-07)
+
+### IMPL-ADAPTER-PLAN-001 Execution Summary
+
+The comprehensive adapter layer audit plan (`ADAPTER_LAYER_IMPLEMENTATION_PLAN.md`) identified 103 issues across 20+ files. All implementable phases (0-7) have been completed.
+
+| Phase | Items | Status | Session |
+|-------|-------|--------|---------|
+| **0** | LOG-001 (HotbarInteractionAdapter logging) | ✅ Complete | 2026-02-06 |
+| **1** | SEC-001/002, CRASH-001–004, NULL-001 | ✅ Complete | 2026-02-06 |
+| **2** | IMPL-001, IMPL-003/004, IMPL-007, countPlayers, getWorldSpawn | ✅ Complete | 2026-02-06 |
+| **3** | INST-001–004 (Instance accessor) | ✅ Complete | 2026-02-06 |
+| **4** | UI-001 openContainer, UI-002 container refresh | ✅ Complete | 2026-02-06 |
+| **5** | NPC-001–005, MODEL-001, MODEL-002 | ✅ Complete | 2026-02-06 |
+| **6** | REG-001, CAM cleanup + letterbox | ✅ Complete | 2026-02-06 |
+| **7** | SDK-blocked docs, build validation | ✅ Complete | 2026-02-07 |
+| **CAM** | CAM-001–006 (position, rotation, perspective, cinematic, distance, lock) | ✅ Complete | 2026-02-07 |
+
+### Build Validation Fixes (2026-02-07)
+
+During the final build validation pass, the following compilation errors were discovered and fixed:
+
+| File | Issue | Fix Applied | Status |
+|------|-------|-------------|--------|
+| `QuestFormatConverter` | `QuestCategory` standalone enum (wrong) | Deleted standalone; use `QuestDefinition.QuestCategory` inner enum | ✅ |
+| `QuestFormatConverter` | 15+ API mismatches | Extensive rewrite: BigDecimal, GraphNodeData, QuestObjectiveReference, TypeEnum, metadata fields | ✅ |
+| `NPCAnimationApiController` | `req.getHeader()` returns `Optional<String>` | Added `.orElse(null)` | ✅ |
+| `HytaleModelAnimationAccessor` | `AnimationInfo` constructor (4→7 params) | Added all 7 required params | ✅ |
+| `HytaleModelAnimationAccessor` | `AnimationSetInfo` constructor (2→4 params) | Added delay params `0.0f, 0.0f` | ✅ |
+| `HytaleModelAnimationAccessor` | `AnimationSoundPair` constructor wrong args | `anim` → `anim.animationId()` | ✅ |
+| `HytaleMultiWorldAccessor` | `getSpawnPosition()` doesn't exist | Changed to `getSpawnPoints()[0].getPosition()` (2 locations) | ✅ |
+| `HytaleNPCEntityAccessor` | `NPCPlugin.get().moveTo()` doesn't exist | `moveTo()` is on `Entity` class; use `world.getEntity(id).moveTo()` | ✅ |
+| `HytaleModelAccessor` | `org.joml.Vector3f/Vector3d` wrong package | Changed to `com.hypixel.hytale.math.vector.*` | ✅ |
+| `HytaleModelAccessor` | `NPCEntity` return type wrong | Changed to `INonPlayerCharacter` (matching `spawnNPC()` signature) | ✅ |
+| `HytaleCameraAccessor` | `hud.close()` doesn't exist on HyUIHud | Changed to `hud.remove()` | ✅ |
+| `HytaleRenderAccessor` | 9 method-level TODO comments | Replaced with SDK limitation notes (server SDK has no render API) | ✅ |
+
+### 🔍 Camera SDK Discovery (2026-02-07)
+
+**Critical correction**: The implementation plan marked camera control (CAM-001–006) as ❌ BLOCKED.  
+Investigation of the Hytale SDK and [hytalemodding.dev camera guide](https://hytalemodding.dev/en/docs/guides/plugin/customizing-camera-controls) reveals **extensive camera control IS available** via:
+
+| SDK Class | Package | Purpose |
+|-----------|---------|---------|
+| `ServerCameraSettings` | `com.hypixel.hytale.protocol` | 30+ camera settings fields |
+| `SetServerCamera` | `com.hypixel.hytale.protocol.packets.camera` | Packet to apply settings to player |
+| `ClientCameraView` | `com.hypixel.hytale.protocol` | `FirstPerson`, `ThirdPerson`, `Custom` |
+| `Direction` | `com.hypixel.hytale.protocol` | `Direction(yaw, pitch, roll)` in radians |
+| `Position` | `com.hypixel.hytale.protocol` | `Position(x, y, z)` |
+| `RotationType` | `com.hypixel.hytale.protocol` | `Custom`, etc. |
+| `PositionType` | `com.hypixel.hytale.protocol` | Camera position mode |
+| `PositionDistanceOffsetType` | `com.hypixel.hytale.protocol` | `DistanceOffset`, `DistanceOffsetRaycast` |
+| `MovementForceRotationType` | `com.hypixel.hytale.protocol` | `AttachedToHead`, `Custom` |
+| `MouseInputType` | `com.hypixel.hytale.protocol` | `LookAtPlane`, `LookAtTarget` |
+| `ApplyLookType` | `com.hypixel.hytale.protocol` | Look application mode |
+| `CameraShakeEffect` | `com.hypixel.hytale.protocol.packets.camera` | Already implemented ✅ |
+
+**Camera capabilities NOW confirmed available:**
+
+| Feature | SDK Support | ServerCameraSettings Field |
+|---------|------------|---------------------------|
+| Camera rotation | ✅ YES | `rotation` (Direction), `rotationType = Custom` |
+| Camera distance/zoom | ✅ YES | `distance` (float) |
+| Camera position | ✅ YES | `position` (Position), `positionType` |
+| Camera offset | ✅ YES | `positionOffset`, `rotationOffset` |
+| Force first/third person | ✅ YES | `isFirstPerson`, `ClientCameraView` |
+| Lock camera | ✅ YES | `isLocked` on SetServerCamera packet |
+| Smooth follow | ✅ YES | `positionLerpSpeed`, `rotationLerpSpeed` |
+| Camera shake | ✅ YES (implemented) | `CameraShakeEffect` packet |
+| Wall clip prevention | ✅ YES | `positionDistanceOffsetType = DistanceOffsetRaycast` |
+| Custom movement alignment | ✅ YES | `movementForceRotationType`, `movementForceRotation` |
+| Cursor display | ✅ YES | `displayCursor` |
+| FOV control | ❌ NOT in ServerCameraSettings | No FOV field found |
+| Depth of field | ❌ NOT in ServerCameraSettings | No post-processing API |
+
+**Usage pattern** (from hytalemodding.dev):
+```java
+ServerCameraSettings settings = new ServerCameraSettings();
+settings.distance = 10.0f;
+settings.isFirstPerson = false;
+settings.rotationType = RotationType.Custom;
+settings.rotation = new Direction(yaw, pitch, roll);
+settings.positionLerpSpeed = 0.2f;
+
+playerRef.getPacketHandler().writeNoCache(
+    new SetServerCamera(ClientCameraView.Custom, true, settings));
+
+// Reset to default:
+playerRef.getPacketHandler().writeNoCache(
+    new SetServerCamera(ClientCameraView.Custom, false, null));
+```
+
+**Implementation status** (2026-02-07):
+- CAM-001/002 (position/rotation): ✅ **IMPLEMENTED** via `SetServerCamera` + `ServerCameraSettings`
+- CAM-003 (letterbox): ✅ **IMPLEMENTED** via HyUI overlay
+- CAM-004 (shake): ✅ **IMPLEMENTED** via `CameraShakeEffect`
+- CAM-005 (force perspective): ✅ **IMPLEMENTED** via `ClientCameraView.FirstPerson/ThirdPerson`
+- CAM-006 (cinematic mode): ✅ **IMPLEMENTED** (compose rotation + distance + lock + letterbox)
+- Camera distance/zoom: ✅ **IMPLEMENTED** via `ServerCameraSettings.distance`
+- Camera locking: ✅ **IMPLEMENTED** via `SetServerCamera(view, isLocked, settings)`
+- Camera reset: ✅ **IMPLEMENTED** via `SetServerCamera(Custom, false, null)`
+- Wall clip prevention: ✅ **IMPLEMENTED** via `PositionDistanceOffsetType.DistanceOffsetRaycast`
+- Smooth follow: ✅ **IMPLEMENTED** via `positionLerpSpeed`, `rotationLerpSpeed`
+- FOV: ❌ Still BLOCKED (no FOV field in ServerCameraSettings)
+- Depth of field: ❌ Still BLOCKED (no post-processing API)
 
 ---
 

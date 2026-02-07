@@ -2,7 +2,6 @@ package com.argonathsystems.adapter.hytale.questdesigner;
 
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
-import com.hypixel.hytale.server.core.plugin.PluginManager;
 import net.nitrado.hytale.plugins.webserver.WebServerPlugin;
 
 import java.nio.file.Path;
@@ -145,12 +144,6 @@ public class QuestDesignerPlugin extends JavaPlugin {
         return webServerAdapter;
     }
 
-    // ==== Stub methods for Hytale API access ====
-    // PluginManager is available from JavaPlugin superclass
-
-    private PluginManager getPluginManager() {
-        // This is typically available from the JavaPlugin superclass
-        // Return from context when Hytale SDK integration is complete
-        throw new UnsupportedOperationException("Hytale API not available - stub implementation");
-    }
+    // PluginManager is available from JavaPlugin superclass via getPluginManager()
+    // No need to override — the parent class JavaPlugin already provides this method.
 }
