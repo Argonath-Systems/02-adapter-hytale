@@ -1,6 +1,8 @@
 package com.argonathsystems.adapter.hytaleadapter.accessor;
 
+import com.argonathsystems.adapter.hytale.packet.DebugPacketWatcher;
 import com.argonathsystems.adapter.hytale.packet.HotbarInteractionAdapter;
+import com.argonathsystems.adapter.hytale.packet.UtilitySelectorInterceptor;
 import com.argonathsystems.framework.accessorapi.InputAccessor;
 import com.hypixel.hytale.server.core.HytaleServer;
 import org.slf4j.Logger;
@@ -85,6 +87,12 @@ public class HytaleInputAccessor implements InputAccessor {
     /** Hotbar interaction adapter for slot filtering */
     private final HotbarInteractionAdapter hotbarInteractionAdapter;
     
+    /** Utility selector interceptor for blocking native circle menu and dispatching custom action */
+    private final UtilitySelectorInterceptor utilitySelectorInterceptor;
+    
+    /** Debug packet watcher for discovering packet types (temporary development tool) */
+    private final DebugPacketWatcher debugPacketWatcher;
+    
     /** List of active hotbar slot filters */
     private final List<HotbarSlotFilterEntry> hotbarSlotFilters = new CopyOnWriteArrayList<>();
     
@@ -95,9 +103,20 @@ public class HytaleInputAccessor implements InputAccessor {
     public HytaleInputAccessor(Object server) {
         this.server = (HytaleServer) server;
         this.hotbarInteractionAdapter = new HotbarInteractionAdapter();
+        this.utilitySelectorInterceptor = new UtilitySelectorInterceptor();
+        this.debugPacketWatcher = new DebugPacketWatcher();
         
         // Wire the composite filter to the adapter
         hotbarInteractionAdapter.registerSlotFilter(this::processHotbarSlotFilters);
+        
+        // Wire the utility selector interceptor callback to dispatchAction()
+        // When the interceptor blocks the native utility selector packet,
+        // it calls this callback which dispatches the action to registered handlers
+        // (e.g., ActionWheelInputListener's "argonath:OPEN_ACTION_WHEEL" handler)
+        utilitySelectorInterceptor.setInterceptCallback((playerId, actionId) -> {
+            LOGGER.info("Utility selector intercepted for player {} — dispatching action: {}", playerId, actionId);
+            dispatchAction(playerId, actionId);
+        });
         
         LOGGER.info("HytaleInputAccessor initialized - ready for input action handling");
     }
@@ -112,6 +131,31 @@ public class HytaleInputAccessor implements InputAccessor {
      */
     public HotbarInteractionAdapter getHotbarInteractionAdapter() {
         return hotbarInteractionAdapter;
+    }
+    
+    /**
+     * Get the utility selector interceptor for packet registration.
+     *
+     * <p>This interceptor should be registered with the packet adapter system
+     * during server initialization. It blocks the native Hytale utility slot
+     * selector (circle menu) and dispatches a custom action instead.</p>
+     *
+     * @return The utility selector interceptor
+     */
+    public UtilitySelectorInterceptor getUtilitySelectorInterceptor() {
+        return utilitySelectorInterceptor;
+    }
+    
+    /**
+     * Get the debug packet watcher for packet registration.
+     *
+     * <p>This watcher logs inbound packets for debugging purposes.
+     * It is an observe-only watcher that does NOT block any packets.</p>
+     *
+     * @return The debug packet watcher
+     */
+    public DebugPacketWatcher getDebugPacketWatcher() {
+        return debugPacketWatcher;
     }
     
     /**
